@@ -11,9 +11,11 @@ import {
   Settings,
   Flame,
   CloudCheck,
-  CloudOff
+  CloudOff,
+  LogOut
 } from 'lucide-react';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { logoutSystem } from './PasswordGate';
 
 export type ActiveTab = 
   | 'dashboard'
@@ -70,10 +72,20 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, todayDa
           </div>
         </div>
 
-        {/* Current Date Badge */}
-        <div className="bg-slate-800/80 border border-slate-700/60 px-4 py-2 rounded-xl flex items-center gap-2 shadow-inner">
-          <CalendarDays className="w-4 h-4 text-cyan-400" />
-          <span className="text-sm font-semibold text-slate-200">{todayDateStr}</span>
+        {/* Current Date Badge & Logout */}
+        <div className="flex items-center gap-3">
+          <div className="bg-slate-800/80 border border-slate-700/60 px-4 py-2 rounded-xl flex items-center gap-2 shadow-inner">
+            <CalendarDays className="w-4 h-4 text-cyan-400" />
+            <span className="text-sm font-semibold text-slate-200">{todayDateStr}</span>
+          </div>
+
+          <button
+            onClick={logoutSystem}
+            title="قفل النظام / خروج"
+            className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-rose-400 hover:bg-slate-700 border border-slate-700 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
 

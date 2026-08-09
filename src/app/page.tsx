@@ -13,6 +13,7 @@ import { AuditLogView } from '@/components/AuditLogView';
 import { SettingsView } from '@/components/SettingsView';
 import { Employee, AttendanceRecord, AuditLog, SystemSettings } from '@/types';
 import { AttendanceStore, getTodayDateString } from '@/lib/store';
+import { PasswordGate } from '@/components/PasswordGate';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -66,96 +67,98 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col font-sans" dir="rtl">
-      {/* Navbar */}
-      <Navbar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        todayDateStr={todayArabicDateStr || 'الأحد 9 أغسطس 2026'}
-      />
-
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'dashboard' && (
-          <DashboardView
-            employees={employees}
-            attendanceRecords={attendanceRecords}
-            settings={settings}
-            onRefreshData={loadData}
-            onOpenEditModal={handleOpenEditModal}
-          />
-        )}
-
-        {activeTab === 'daily_report' && (
-          <DailyReportView
-            employees={employees}
-            attendanceRecords={attendanceRecords}
-            onOpenEditModal={handleOpenEditModal}
-            onUpsertRecord={handleUpsertRecord}
-          />
-        )}
-
-        {activeTab === 'monthly_report' && (
-          <MonthlyReportView
-            employees={employees}
-            attendanceRecords={attendanceRecords}
-          />
-        )}
-
-        {activeTab === 'late_employees' && (
-          <LateEmployeesView
-            employees={employees}
-            attendanceRecords={attendanceRecords}
-          />
-        )}
-
-        {activeTab === 'employees' && (
-          <EmployeesView
-            employees={employees}
-            attendanceRecords={attendanceRecords}
-            onRefreshData={loadData}
-            onSelectEmployeeProfile={(emp) => setSelectedProfileEmployee(emp)}
-          />
-        )}
-
-        {activeTab === 'audit_log' && (
-          <AuditLogView auditLogs={auditLogs} />
-        )}
-
-        {activeTab === 'settings' && (
-          <SettingsView
-            settings={settings}
-            onRefreshData={loadData}
-          />
-        )}
-      </main>
-
-      {/* Modals */}
-      {selectedProfileEmployee && (
-        <EmployeeProfileModal
-          employee={selectedProfileEmployee}
-          attendanceRecords={attendanceRecords}
-          onClose={() => setSelectedProfileEmployee(null)}
-          onOpenEditModal={(rec) => {
-            setSelectedProfileEmployee(null);
-            handleOpenEditModal(rec);
-          }}
+    <PasswordGate>
+      <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col font-sans" dir="rtl">
+        {/* Navbar */}
+        <Navbar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          todayDateStr={todayArabicDateStr || 'الأحد 9 أغسطس 2026'}
         />
-      )}
 
-      {editingAttendanceRecord && (
-        <EditAttendanceModal
-          record={editingAttendanceRecord}
-          employees={employees}
-          onClose={() => setEditingAttendanceRecord(null)}
-          onRefreshData={loadData}
-        />
-      )}
+        {/* Main Content Area */}
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {activeTab === 'dashboard' && (
+            <DashboardView
+              employees={employees}
+              attendanceRecords={attendanceRecords}
+              settings={settings}
+              onRefreshData={loadData}
+              onOpenEditModal={handleOpenEditModal}
+            />
+          )}
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-950/60 py-4 text-center text-xs text-slate-500">
-        <p>نظام حضور الحسيني للتكييف © 2026 - جاهز للنشر السحابي على Vercel و Supabase</p>
-      </footer>
-    </div>
+          {activeTab === 'daily_report' && (
+            <DailyReportView
+              employees={employees}
+              attendanceRecords={attendanceRecords}
+              onOpenEditModal={handleOpenEditModal}
+              onUpsertRecord={handleUpsertRecord}
+            />
+          )}
+
+          {activeTab === 'monthly_report' && (
+            <MonthlyReportView
+              employees={employees}
+              attendanceRecords={attendanceRecords}
+            />
+          )}
+
+          {activeTab === 'late_employees' && (
+            <LateEmployeesView
+              employees={employees}
+              attendanceRecords={attendanceRecords}
+            />
+          )}
+
+          {activeTab === 'employees' && (
+            <EmployeesView
+              employees={employees}
+              attendanceRecords={attendanceRecords}
+              onRefreshData={loadData}
+              onSelectEmployeeProfile={(emp) => setSelectedProfileEmployee(emp)}
+            />
+          )}
+
+          {activeTab === 'audit_log' && (
+            <AuditLogView auditLogs={auditLogs} />
+          )}
+
+          {activeTab === 'settings' && (
+            <SettingsView
+              settings={settings}
+              onRefreshData={loadData}
+            />
+          )}
+        </main>
+
+        {/* Modals */}
+        {selectedProfileEmployee && (
+          <EmployeeProfileModal
+            employee={selectedProfileEmployee}
+            attendanceRecords={attendanceRecords}
+            onClose={() => setSelectedProfileEmployee(null)}
+            onOpenEditModal={(rec) => {
+              setSelectedProfileEmployee(null);
+              handleOpenEditModal(rec);
+            }}
+          />
+        )}
+
+        {editingAttendanceRecord && (
+          <EditAttendanceModal
+            record={editingAttendanceRecord}
+            employees={employees}
+            onClose={() => setEditingAttendanceRecord(null)}
+            onRefreshData={loadData}
+          />
+        )}
+
+        {/* Footer */}
+        <footer className="border-t border-slate-800/80 bg-slate-950/60 py-4 text-center text-xs text-slate-500">
+          <p>نظام حضور الحسيني للتكييف © 2026 - جاهز للنشر السحابي على Vercel و Supabase</p>
+        </footer>
+      </div>
+    </PasswordGate>
   );
 }
