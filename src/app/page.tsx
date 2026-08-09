@@ -14,7 +14,7 @@ import { SettingsView } from '@/components/SettingsView';
 import { Employee, AttendanceRecord, AuditLog, SystemSettings } from '@/types';
 import { AttendanceStore, getTodayDateString } from '@/lib/store';
 import { PasswordGate } from '@/components/PasswordGate';
-import { supabase, isSupabaseConfigured, globalRealtimeChannel } from '@/lib/supabase';
+import { getSocket } from '@/lib/socket';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -39,7 +39,7 @@ export default function Home() {
     setAuditLogs(AttendanceStore.getAuditLogs());
     setSettings(AttendanceStore.getSettings());
 
-    // Fetch latest live data from Supabase if configured
+    // Fetch latest live data from DigitalOcean Server API
     const [fetchedEmps, fetchedAtt, fetchedLogs, fetchedSet] = await Promise.all([
       AttendanceStore.fetchEmployeesAsync(),
       AttendanceStore.fetchAttendanceAsync(),
@@ -70,35 +70,23 @@ export default function Home() {
 
     setTodayArabicDateStr(`${dayName} ${dayNum} ${monthName} ${yearNum}`);
 
-    // 1. Listen to Global Realtime Broadcast Room
-    if (globalRealtimeChannel) {
-      globalRealtimeChannel.on('broadcast', { event: 'data_changed' }, () => {
+    // Socket.io Realtime Listener
+    if (typeof window !== 'undefined') {
+      const socket = getSocket();
+      const handleDataChanged = () => {
         loadData();
-      });
+      };
+      socket.on('data_changed', handleDataChanged);
+
+      const pollInterval = setInterval(() => {
+        loadData();
+      }, 4000);
+
+      return () => {
+        socket.off('data_changed', handleDataChanged);
+        clearInterval(pollInterval);
+      };
     }
-
-    // 2. Listen to PostgreSQL DB WAL Changes
-    let dbChannel: any = null;
-    if (isSupabaseConfigured && supabase) {
-      dbChannel = supabase
-        .channel('schema-db-changes')
-        .on('postgres_changes', { event: '*', schema: 'public' }, () => {
-          loadData();
-        })
-        .subscribe();
-    }
-
-    // 3. Fallback Auto-Sync Polling every 3 seconds across all devices
-    const pollInterval = setInterval(() => {
-      loadData();
-    }, 3000);
-
-    return () => {
-      clearInterval(pollInterval);
-      if (dbChannel && supabase) {
-        supabase.removeChannel(dbChannel);
-      }
-    };
   }, []);
 
   const handleOpenEditModal = (record: AttendanceRecord) => {

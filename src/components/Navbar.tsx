@@ -14,7 +14,6 @@ import {
   CloudOff,
   LogOut
 } from 'lucide-react';
-import { isSupabaseConfigured } from '@/lib/supabase';
 import { logoutSystem } from './PasswordGate';
 
 export type ActiveTab = 
@@ -59,15 +58,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, todayDa
             <p className="text-xs text-slate-400 font-medium flex items-center gap-2">
               <span>مركز الصيانة المعتمد والخدمات الفنية</span>
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 inline-block"></span>
-              {isSupabaseConfigured ? (
-                <span className="text-emerald-400 flex items-center gap-1">
-                  <CloudCheck className="w-3.5 h-3.5" /> متصل سحابياً والبث اللحظي مباشر (Realtime Live)
-                </span>
-              ) : (
-                <span className="text-slate-400 flex items-center gap-1">
-                  <CloudOff className="w-3.5 h-3.5" /> تخزين محلي (Offline Ready)
-                </span>
-              )}
+              <span className="text-emerald-400 flex items-center gap-1">
+                <CloudCheck className="w-3.5 h-3.5" /> خادم DigitalOcean وبث لحظي (Socket.io Realtime)
+              </span>
             </p>
           </div>
         </div>

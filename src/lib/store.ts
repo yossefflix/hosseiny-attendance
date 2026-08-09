@@ -1,11 +1,10 @@
 import { Employee, AttendanceRecord, AuditLog, SystemSettings, AttendanceStatus } from '@/types';
-import { supabase, isSupabaseConfigured, notifyRealtimeDataChange } from './supabase';
 
 const STORAGE_KEYS = {
-  EMPLOYEES: 'hosseiny_employees_v6',
-  ATTENDANCE: 'hosseiny_attendance_v6',
-  AUDIT_LOGS: 'hosseiny_audit_logs_v6',
-  SETTINGS: 'hosseiny_settings_v6',
+  EMPLOYEES: 'hosseiny_employees_v7',
+  ATTENDANCE: 'hosseiny_attendance_v7',
+  AUDIT_LOGS: 'hosseiny_audit_logs_v7',
+  SETTINGS: 'hosseiny_settings_v7',
 };
 
 export const DEFAULT_SETTINGS: SystemSettings = {
@@ -91,7 +90,7 @@ export function formatArabicTime(timeStr?: string): string {
 }
 
 export class AttendanceStore {
-  // --- LOCAL PERSISTENCE HELPERS ---
+  // --- LOCAL SYNCHRONOUS FALLBACKS ---
   static getEmployees(): Employee[] {
     if (typeof window === 'undefined') return INITIAL_EMPLOYEES;
     const data = localStorage.getItem(STORAGE_KEYS.EMPLOYEES);
@@ -139,27 +138,29 @@ export class AttendanceStore {
     }
   }
 
-  // --- ASYNC CLOUD SYNC FROM SUPABASE ---
+  // --- ASYNC API FETCHING FROM DIGITALOCEAN SERVER ---
   static async fetchEmployeesAsync(): Promise<Employee[]> {
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error } = await supabase.from('employees').select('*').order('created_at', { ascending: true });
-        if (!error && data && data.length > 0) {
+    try {
+      const res = await fetch('/api/employees');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
           localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(data));
           return data as Employee[];
         }
-      } catch (err) {
-        console.error('Supabase fetchEmployees error:', err);
       }
+    } catch (err) {
+      console.error('Fetch employees error:', err);
     }
     return this.getEmployees();
   }
 
   static async fetchAttendanceAsync(): Promise<AttendanceRecord[]> {
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error } = await supabase.from('attendance').select('*').order('created_at', { ascending: true });
-        if (!error && data) {
+    try {
+      const res = await fetch('/api/attendance');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
           const formatted: AttendanceRecord[] = data.map((item: any) => ({
             ...item,
             date: item.date ? String(item.date).slice(0, 10) : getTodayDateString(),
@@ -169,33 +170,35 @@ export class AttendanceStore {
           localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(formatted));
           return formatted;
         }
-      } catch (err) {
-        console.error('Supabase fetchAttendance error:', err);
       }
+    } catch (err) {
+      console.error('Fetch attendance error:', err);
     }
     return this.getAttendance();
   }
 
   static async fetchAuditLogsAsync(): Promise<AuditLog[]> {
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error } = await supabase.from('audit_logs').select('*').order('changed_at', { ascending: false });
-        if (!error && data) {
+    try {
+      const res = await fetch('/api/audit-logs');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
           localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(data));
           return data as AuditLog[];
         }
-      } catch (err) {
-        console.error('Supabase fetchAuditLogs error:', err);
       }
+    } catch (err) {
+      console.error('Fetch audit logs error:', err);
     }
     return this.getAuditLogs();
   }
 
   static async fetchSettingsAsync(): Promise<SystemSettings> {
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error } = await supabase.from('settings').select('*').eq('id', 1).single();
-        if (!error && data) {
+    try {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
           const fetched: SystemSettings = {
             work_start_time: data.work_start_time ? String(data.work_start_time).slice(0, 5) : '09:00',
             late_start_time: data.late_start_time ? String(data.late_start_time).slice(0, 5) : '10:00',
@@ -204,27 +207,26 @@ export class AttendanceStore {
           localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(fetched));
           return fetched;
         }
-      } catch (err) {
-        console.error('Supabase fetchSettings error:', err);
       }
+    } catch (err) {
+      console.error('Fetch settings error:', err);
     }
     return this.getSettings();
   }
 
-  // --- MUTATIONS WITH DUAL INSTANT LOCAL + CLOUD PERSISTENCE ---
+  // --- MUTATIONS VIA SERVER API ---
   static async saveSettings(newSettings: SystemSettings): Promise<void> {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
     }
-    if (isSupabaseConfigured && supabase) {
-      await supabase.from('settings').upsert({
-        id: 1,
-        work_start_time: `${newSettings.work_start_time}:00`,
-        late_start_time: `${newSettings.late_start_time}:00`,
-        severe_late_time: `${newSettings.severe_late_time}:00`,
-        updated_at: new Date().toISOString(),
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSettings),
       });
-      notifyRealtimeDataChange();
+    } catch (err) {
+      console.error('Save settings error:', err);
     }
   }
 
@@ -254,15 +256,18 @@ export class AttendanceStore {
       localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
     }
 
-    if (isSupabaseConfigured && supabase) {
-      await supabase.from('employees').upsert({
-        id: savedEmployee.id,
-        name: savedEmployee.name,
-        phone: savedEmployee.phone || '',
-        job_title: savedEmployee.job_title,
-        status: savedEmployee.status,
+    try {
+      const res = await fetch('/api/employees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(savedEmployee),
       });
-      notifyRealtimeDataChange();
+      if (res.ok) {
+        const cloudSaved = await res.json();
+        return cloudSaved;
+      }
+    } catch (err) {
+      console.error('Save employee error:', err);
     }
 
     return savedEmployee;
@@ -276,9 +281,10 @@ export class AttendanceStore {
       if (typeof window !== 'undefined') {
         localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
       }
-      if (isSupabaseConfigured && supabase) {
-        await supabase.from('employees').update({ status: employee.status }).eq('id', id);
-        notifyRealtimeDataChange();
+      try {
+        await fetch(`/api/employees/${id}/toggle`, { method: 'PUT' });
+      } catch (err) {
+        console.error('Toggle employee status error:', err);
       }
     }
   }
@@ -289,9 +295,10 @@ export class AttendanceStore {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
     }
-    if (isSupabaseConfigured && supabase) {
-      await supabase.from('employees').delete().eq('id', id);
-      notifyRealtimeDataChange();
+    try {
+      await fetch(`/api/employees/${id}`, { method: 'DELETE' });
+    } catch (err) {
+      console.error('Delete employee error:', err);
     }
   }
 
@@ -328,17 +335,18 @@ export class AttendanceStore {
       localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(allRecords));
     }
 
-    if (isSupabaseConfigured && supabase) {
-      await supabase.from('attendance').upsert({
-        id: newRecord.id,
-        employee_id: employeeId,
-        date,
-        check_in_time: `${checkInTime}:00`,
-        original_check_in_time: `${checkInTime}:00`,
-        status,
-        edited: false,
-      }, { onConflict: 'employee_id,date' });
-      notifyRealtimeDataChange();
+    try {
+      const res = await fetch('/api/attendance/checkin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newRecord),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        return result;
+      }
+    } catch (err) {
+      console.error('Record checkin error:', err);
     }
 
     return { success: true, record: newRecord };
@@ -369,33 +377,18 @@ export class AttendanceStore {
       localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(allRecords));
     }
 
-    const employees = this.getEmployees();
-    const emp = employees.find((e) => e.id === record.employee_id);
-
-    const auditLogRecord: AuditLog = {
-      id: `log-${Date.now()}`,
-      attendance_id: recordId,
-      employee_id: record.employee_id,
-      employee_name: emp ? emp.name : 'موظف',
-      old_time: oldTime,
-      new_time: newTime,
-      old_status: oldStatus,
-      new_status: newStatus,
-      changed_by: changedBy,
-      changed_at: new Date().toISOString(),
-    };
-
-    await this.addAuditLog(auditLogRecord);
-
-    if (isSupabaseConfigured && supabase) {
-      await supabase.from('attendance').update({
-        check_in_time: `${newTime}:00`,
-        status: newStatus,
-        edited: true,
-        edited_at: record.edited_at,
-        notes: notes,
-      }).eq('id', recordId);
-      notifyRealtimeDataChange();
+    try {
+      const res = await fetch('/api/attendance/edit', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recordId, newTime, newStatus, notes, changedBy }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        return updated;
+      }
+    } catch (err) {
+      console.error('Edit attendance error:', err);
     }
 
     return record;
@@ -435,41 +428,20 @@ export class AttendanceStore {
       localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(allRecords));
     }
 
-    if (isSupabaseConfigured && supabase) {
-      await supabase.from('attendance').upsert({
-        id: record.id,
-        employee_id: employeeId,
-        date,
-        check_in_time: `${checkInTime}:00`,
-        original_check_in_time: `${checkInTime}:00`,
-        status,
-        edited: true,
-        notes: notes,
-      }, { onConflict: 'employee_id,date' });
-      notifyRealtimeDataChange();
+    try {
+      const res = await fetch('/api/attendance/upsert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record),
+      });
+      if (res.ok) {
+        const cloudRecord = await res.json();
+        return cloudRecord;
+      }
+    } catch (err) {
+      console.error('Upsert attendance error:', err);
     }
 
     return record;
-  }
-
-  static async addAuditLog(log: AuditLog): Promise<void> {
-    const logs = this.getAuditLogs();
-    logs.unshift(log);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(logs));
-    }
-
-    if (isSupabaseConfigured && supabase) {
-      await supabase.from('audit_logs').insert({
-        id: log.id,
-        attendance_id: log.attendance_id,
-        employee_id: log.employee_id,
-        old_time: log.old_time ? `${log.old_time}:00` : null,
-        new_time: log.new_time ? `${log.new_time}:00` : null,
-        old_status: log.old_status,
-        new_status: log.new_status,
-        changed_by: log.changed_by,
-      });
-    }
   }
 }
