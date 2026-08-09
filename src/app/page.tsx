@@ -31,11 +31,25 @@ export default function Home() {
   // Today Date formatted in Arabic (e.g. الأحد 9 أغسطس 2026)
   const [todayArabicDateStr, setTodayArabicDateStr] = useState('');
 
-  const loadData = () => {
+  const loadData = async () => {
+    // Immediate fallback display
     setEmployees(AttendanceStore.getEmployees());
     setAttendanceRecords(AttendanceStore.getAttendance());
     setAuditLogs(AttendanceStore.getAuditLogs());
     setSettings(AttendanceStore.getSettings());
+
+    // Fetch latest live data from Supabase if configured
+    const [fetchedEmps, fetchedAtt, fetchedLogs, fetchedSet] = await Promise.all([
+      AttendanceStore.fetchEmployeesAsync(),
+      AttendanceStore.fetchAttendanceAsync(),
+      AttendanceStore.fetchAuditLogsAsync(),
+      AttendanceStore.fetchSettingsAsync(),
+    ]);
+
+    setEmployees(fetchedEmps);
+    setAttendanceRecords(fetchedAtt);
+    setAuditLogs(fetchedLogs);
+    setSettings(fetchedSet);
   };
 
   useEffect(() => {

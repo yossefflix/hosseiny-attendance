@@ -2,9 +2,15 @@
 -- نظام حضور الحسيني للتكييف - Supabase Database Schema
 -- =========================================================
 
+-- إعادة إنشاء الجداول بنص المعرف (id TEXT) لتوافق الاتصال التام
+DROP TABLE IF EXISTS audit_logs CASCADE;
+DROP TABLE IF EXISTS attendance CASCADE;
+DROP TABLE IF EXISTS employees CASCADE;
+DROP TABLE IF EXISTS settings CASCADE;
+
 -- 1. جدول الموظفين (employees)
-CREATE TABLE IF NOT EXISTS employees (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+CREATE TABLE employees (
+    id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     phone TEXT,
     job_title TEXT NOT NULL DEFAULT 'فني تكييف',
@@ -13,9 +19,9 @@ CREATE TABLE IF NOT EXISTS employees (
 );
 
 -- 2. جدول الحضور والغياب (attendance)
-CREATE TABLE IF NOT EXISTS attendance (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID REFERENCES employees(id) ON DELETE CASCADE,
+CREATE TABLE attendance (
+    id TEXT PRIMARY KEY,
+    employee_id TEXT REFERENCES employees(id) ON DELETE CASCADE,
     date DATE NOT NULL DEFAULT CURRENT_DATE,
     check_in_time TIME NOT NULL,
     original_check_in_time TIME,
@@ -28,10 +34,10 @@ CREATE TABLE IF NOT EXISTS attendance (
 );
 
 -- 3. جدول سجل التعديلات (audit_logs)
-CREATE TABLE IF NOT EXISTS audit_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    attendance_id UUID REFERENCES attendance(id) ON DELETE CASCADE,
-    employee_id UUID REFERENCES employees(id) ON DELETE CASCADE,
+CREATE TABLE audit_logs (
+    id TEXT PRIMARY KEY,
+    attendance_id TEXT REFERENCES attendance(id) ON DELETE CASCADE,
+    employee_id TEXT REFERENCES employees(id) ON DELETE CASCADE,
     old_time TIME,
     new_time TIME,
     old_status TEXT,
@@ -41,7 +47,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 
 -- 4. جدول الإعدادات (settings)
-CREATE TABLE IF NOT EXISTS settings (
+CREATE TABLE settings (
     id INT PRIMARY KEY DEFAULT 1,
     work_start_time TIME NOT NULL DEFAULT '09:00:00',
     late_start_time TIME NOT NULL DEFAULT '10:00:00',
@@ -49,35 +55,46 @@ CREATE TABLE IF NOT EXISTS settings (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- بيانات أولية افتراضية للمشروع (Default Seed Data)
+-- تفعيل سياسات الوصول (Row Level Security - RLS) للسماح بالقراءة والكتابة من الفرونت إند
+ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public employees access" ON employees FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public attendance access" ON attendance FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public audit_logs access" ON audit_logs FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public settings access" ON settings FOR ALL USING (true) WITH CHECK (true);
+
+-- بيانات أولية افتراضية لمواعيد الدوام
 INSERT INTO settings (id, work_start_time, late_start_time, severe_late_time)
 VALUES (1, '09:00:00', '10:00:00', '11:00:00')
 ON CONFLICT (id) DO NOTHING;
 
--- إضافة الـ 24 موظف بشركة الحسيني للتكييف
-INSERT INTO employees (name, phone, job_title, status) VALUES
-('احمد سريع', '', 'فني تكييف', 'active'),
-('محمد سمير', '', 'فني تكييف', 'active'),
-('عمر حسن', '', 'فني صيانة', 'active'),
-('شريف محمود', '', 'فني تكييف', 'active'),
-('مؤمن', '', 'مساعد فني', 'active'),
-('كريم عيد', '', 'فني تركيبات', 'active'),
-('عمرو خالد', '', 'مهندس تبريد وتكييف', 'active'),
-('سيد ربيع', '', 'فني صيانة', 'active'),
-('خالد سيد', '', 'فني تكييف', 'active'),
-('شريف احمد', '', 'فني تركيبات', 'active'),
-('عبد الله ممدوح', '', 'فني تكييف', 'active'),
-('احمد شعبان', '', 'فني صيانة', 'active'),
-('محمود احمد', '', 'مشرف موقع', 'active'),
-('احمد جلال', '', 'فني تكييف', 'active'),
-('علاء هشام', '', 'مهندس تبريد', 'active'),
-('عبد الرحمن حسن', '', 'فني صيانة', 'active'),
-('اشرف ابراهيم', '', 'فني تكييف', 'active'),
-('يوسف شعبان', '', 'مساعد فني', 'active'),
-('يوسف احمد', '', 'فني تركيبات', 'active'),
-('منار سيد', '', 'إداري', 'active'),
-('زينب علي', '', 'إداري', 'active'),
-('ملك ناصر', '', 'إداري', 'active'),
-('حنين خميس', '', 'إداري', 'active'),
-('لارا هيثم', '', 'إداري', 'active')
-ON CONFLICT DO NOTHING;
+-- إضافة قائمة الـ 24 موظف بشركة الحسيني للتكييف
+INSERT INTO employees (id, name, phone, job_title, status) VALUES
+('emp-1', 'احمد سريع', '', 'فني تكييف', 'active'),
+('emp-2', 'محمد سمير', '', 'فني تكييف', 'active'),
+('emp-3', 'عمر حسن', '', 'فني صيانة', 'active'),
+('emp-4', 'شريف محمود', '', 'فني تكييف', 'active'),
+('emp-5', 'مؤمن', '', 'مساعد فني', 'active'),
+('emp-6', 'كريم عيد', '', 'فني تركيبات', 'active'),
+('emp-7', 'عمرو خالد', '', 'مهندس تبريد وتكييف', 'active'),
+('emp-8', 'سيد ربيع', '', 'فني صيانة', 'active'),
+('emp-9', 'خالد سيد', '', 'فني تكييف', 'active'),
+('emp-10', 'شريف احمد', '', 'فني تركيبات', 'active'),
+('emp-11', 'عبد الله ممدوح', '', 'فني تكييف', 'active'),
+('emp-12', 'احمد شعبان', '', 'فني صيانة', 'active'),
+('emp-13', 'محمود احمد', '', 'مشرف موقع', 'active'),
+('emp-14', 'احمد جلال', '', 'فني تكييف', 'active'),
+('emp-15', 'علاء هشام', '', 'مهندس تبريد', 'active'),
+('emp-16', 'عبد الرحمن حسن', '', 'فني صيانة', 'active'),
+('emp-17', 'اشرف ابراهيم', '', 'فني تكييف', 'active'),
+('emp-18', 'يوسف شعبان', '', 'مساعد فني', 'active'),
+('emp-19', 'يوسف احمد', '', 'فني تركيبات', 'active'),
+('emp-20', 'منار سيد', '', 'إداري', 'active'),
+('emp-21', 'زينب علي', '', 'إداري', 'active'),
+('emp-22', 'ملك ناصر', '', 'إداري', 'active'),
+('emp-23', 'حنين خميس', '', 'إداري', 'active'),
+('emp-24', 'لارا هيثم', '', 'إداري', 'active')
+ON CONFLICT (id) DO NOTHING;
