@@ -14,7 +14,7 @@ import { SettingsView } from '@/components/SettingsView';
 import { Employee, AttendanceRecord, AuditLog, SystemSettings } from '@/types';
 import { AttendanceStore, getTodayDateString } from '@/lib/store';
 import { PasswordGate } from '@/components/PasswordGate';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured, globalRealtimeChannel } from '@/lib/supabase';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -70,29 +70,35 @@ export default function Home() {
 
     setTodayArabicDateStr(`${dayName} ${dayNum} ${monthName} ${yearNum}`);
 
-    // Live Realtime Subscriptions & Broadcast across all connected devices
-    if (isSupabaseConfigured && supabase) {
-      const client = supabase;
+    // 1. Listen to Global Realtime Broadcast Room
+    if (globalRealtimeChannel) {
+      globalRealtimeChannel.on('broadcast', { event: 'data_changed' }, () => {
+        loadData();
+      });
+    }
 
-      const dbChannel = client
+    // 2. Listen to PostgreSQL DB WAL Changes
+    let dbChannel: any = null;
+    if (isSupabaseConfigured && supabase) {
+      dbChannel = supabase
         .channel('schema-db-changes')
         .on('postgres_changes', { event: '*', schema: 'public' }, () => {
           loadData();
         })
         .subscribe();
-
-      const broadcastChannel = client
-        .channel('hosseiny-live-broadcast')
-        .on('broadcast', { event: 'data_changed' }, () => {
-          loadData();
-        })
-        .subscribe();
-
-      return () => {
-        client.removeChannel(dbChannel);
-        client.removeChannel(broadcastChannel);
-      };
     }
+
+    // 3. Fallback Auto-Sync Polling every 3 seconds across all devices
+    const pollInterval = setInterval(() => {
+      loadData();
+    }, 3000);
+
+    return () => {
+      clearInterval(pollInterval);
+      if (dbChannel && supabase) {
+        supabase.removeChannel(dbChannel);
+      }
+    };
   }, []);
 
   const handleOpenEditModal = (record: AttendanceRecord) => {
