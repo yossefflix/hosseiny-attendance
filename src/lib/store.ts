@@ -2,10 +2,10 @@ import { Employee, AttendanceRecord, AuditLog, SystemSettings, AttendanceStatus 
 import { supabase, isSupabaseConfigured } from './supabase';
 
 const STORAGE_KEYS = {
-  EMPLOYEES: 'hosseiny_employees_v2',
-  ATTENDANCE: 'hosseiny_attendance_v2',
-  AUDIT_LOGS: 'hosseiny_audit_logs_v2',
-  SETTINGS: 'hosseiny_settings_v2',
+  EMPLOYEES: 'hosseiny_employees_v3',
+  ATTENDANCE: 'hosseiny_attendance_v3',
+  AUDIT_LOGS: 'hosseiny_audit_logs_v3',
+  SETTINGS: 'hosseiny_settings_v3',
 };
 
 export const DEFAULT_SETTINGS: SystemSettings = {
@@ -367,19 +367,6 @@ export class AttendanceStore {
   }
 
   private static generateSampleAttendance(): AttendanceRecord[] {
-    const records: AttendanceRecord[] = [];
-    const today = getTodayDateString();
-    
-    // Sample records for the new 24 employees list
-    records.push(
-      { id: 'att-1', employee_id: '1', date: today, check_in_time: '08:55', original_check_in_time: '08:55', status: 'present', created_at: new Date().toISOString() },
-      { id: 'att-2', employee_id: '2', date: today, check_in_time: '09:45', original_check_in_time: '09:45', status: 'present', created_at: new Date().toISOString() },
-      { id: 'att-3', employee_id: '3', date: today, check_in_time: '10:20', original_check_in_time: '10:20', status: 'late', created_at: new Date().toISOString() },
-      { id: 'att-4', employee_id: '4', date: today, check_in_time: '11:15', original_check_in_time: '11:15', status: 'severe_late', created_at: new Date().toISOString() },
-      { id: 'att-5', employee_id: '5', date: today, check_in_time: '10:35', original_check_in_time: '10:35', status: 'late', created_at: new Date().toISOString() },
-      { id: 'att-6', employee_id: '6', date: today, check_in_time: '11:42', original_check_in_time: '11:42', status: 'severe_late', created_at: new Date().toISOString() }
-    );
-
-    return records;
+    return [];
   }
 }
