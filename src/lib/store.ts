@@ -2,10 +2,10 @@ import { Employee, AttendanceRecord, AuditLog, SystemSettings, AttendanceStatus 
 import { supabase, isSupabaseConfigured } from './supabase';
 
 const STORAGE_KEYS = {
-  EMPLOYEES: 'hosseiny_employees',
-  ATTENDANCE: 'hosseiny_attendance',
-  AUDIT_LOGS: 'hosseiny_audit_logs',
-  SETTINGS: 'hosseiny_settings',
+  EMPLOYEES: 'hosseiny_employees_v2',
+  ATTENDANCE: 'hosseiny_attendance_v2',
+  AUDIT_LOGS: 'hosseiny_audit_logs_v2',
+  SETTINGS: 'hosseiny_settings_v2',
 };
 
 export const DEFAULT_SETTINGS: SystemSettings = {
@@ -15,18 +15,33 @@ export const DEFAULT_SETTINGS: SystemSettings = {
 };
 
 const INITIAL_EMPLOYEES: Employee[] = [
-  { id: '1', name: 'أحمد محمد', phone: '01012345678', job_title: 'فني تكييف رئيسي', status: 'active' },
-  { id: '2', name: 'محمود علي', phone: '01123456789', job_title: 'فني تكييف', status: 'active' },
-  { id: '3', name: 'محمد حسن', phone: '01234567890', job_title: 'مهندس تبريد وتكييف', status: 'active' },
-  { id: '4', name: 'إبراهيم السيد', phone: '01543219876', job_title: 'فني صيانة', status: 'active' },
-  { id: '5', name: 'علي محمد', phone: '01098765432', job_title: 'مساعد فني', status: 'active' },
-  { id: '6', name: 'حسن أحمد', phone: '01187654321', job_title: 'فني تركيبات', status: 'active' },
-  { id: '7', name: 'أحمد السيد', phone: '01276543210', job_title: 'فني تكييف', status: 'active' },
-  { id: '8', name: 'مصطفى محمود', phone: '01598765432', job_title: 'مشرف موقع', status: 'active' },
+  { id: '1', name: 'احمد سريع', phone: '', job_title: 'فني تكييف', status: 'active' },
+  { id: '2', name: 'محمد سمير', phone: '', job_title: 'فني تكييف', status: 'active' },
+  { id: '3', name: 'عمر حسن', phone: '', job_title: 'فني صيانة', status: 'active' },
+  { id: '4', name: 'شريف محمود', phone: '', job_title: 'فني تكييف', status: 'active' },
+  { id: '5', name: 'مؤمن', phone: '', job_title: 'مساعد فني', status: 'active' },
+  { id: '6', name: 'كريم عيد', phone: '', job_title: 'فني تركيبات', status: 'active' },
+  { id: '7', name: 'عمرو خالد', phone: '', job_title: 'مهندس تبريد وتكييف', status: 'active' },
+  { id: '8', name: 'سيد ربيع', phone: '', job_title: 'فني صيانة', status: 'active' },
+  { id: '9', name: 'خالد سيد', phone: '', job_title: 'فني تكييف', status: 'active' },
+  { id: '10', name: 'شريف احمد', phone: '', job_title: 'فني تركيبات', status: 'active' },
+  { id: '11', name: 'عبد الله ممدوح', phone: '', job_title: 'فني تكييف', status: 'active' },
+  { id: '12', name: 'احمد شعبان', phone: '', job_title: 'فني صيانة', status: 'active' },
+  { id: '13', name: 'محمود احمد', phone: '', job_title: 'مشرف موقع', status: 'active' },
+  { id: '14', name: 'احمد جلال', phone: '', job_title: 'فني تكييف', status: 'active' },
+  { id: '15', name: 'علاء هشام', phone: '', job_title: 'مهندس تبريد', status: 'active' },
+  { id: '16', name: 'عبد الرحمن حسن', phone: '', job_title: 'فني صيانة', status: 'active' },
+  { id: '17', name: 'اشرف ابراهيم', phone: '', job_title: 'فني تكييف', status: 'active' },
+  { id: '18', name: 'يوسف شعبان', phone: '', job_title: 'مساعد فني', status: 'active' },
+  { id: '19', name: 'يوسف احمد', phone: '', job_title: 'فني تركيبات', status: 'active' },
+  { id: '20', name: 'منار سيد', phone: '', job_title: 'إداري', status: 'active' },
+  { id: '21', name: 'زينب علي', phone: '', job_title: 'إداري', status: 'active' },
+  { id: '22', name: 'ملك ناصر', phone: '', job_title: 'إداري', status: 'active' },
+  { id: '23', name: 'حنين خميس', phone: '', job_title: 'إداري', status: 'active' },
+  { id: '24', name: 'لارا هيثم', phone: '', job_title: 'إداري', status: 'active' },
 ];
 
 export function getTodayDateString(): string {
-  // Return YYYY-MM-DD
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -35,14 +50,12 @@ export function getTodayDateString(): string {
 }
 
 export function getCurrentTimeString(): string {
-  // Return HH:mm
   const now = new Date();
   const hours = String(now.getHours()).padStart(2, '0');
   const minutes = String(now.getMinutes()).padStart(2, '0');
   return `${hours}:${minutes}`;
 }
 
-// Convert "09:00" to minutes integer for comparison
 export function timeToMinutes(timeStr: string): number {
   if (!timeStr) return 0;
   const parts = timeStr.split(':');
@@ -51,7 +64,6 @@ export function timeToMinutes(timeStr: string): number {
   return h * 60 + m;
 }
 
-// Determine status based on time string and settings
 export function calculateAttendanceStatus(timeStr: string, settings: SystemSettings): AttendanceStatus {
   const checkInMin = timeToMinutes(timeStr);
   const lateMin = timeToMinutes(settings.late_start_time);
@@ -66,7 +78,6 @@ export function calculateAttendanceStatus(timeStr: string, settings: SystemSetti
   }
 }
 
-// Format 24h time to 12h Arabic time string
 export function formatArabicTime(timeStr?: string): string {
   if (!timeStr) return '--:--';
   const parts = timeStr.split(':');
@@ -74,12 +85,11 @@ export function formatArabicTime(timeStr?: string): string {
   const m = parts[1] || '00';
   const ampm = h >= 12 ? 'م' : 'ص';
   h = h % 12;
-  h = h ? h : 12; // 0 becomes 12
+  h = h ? h : 12;
   const formattedHour = String(h).padStart(2, '0');
   return `${formattedHour}:${m} ${ampm}`;
 }
 
-// Store Helper for LocalStorage + Supabase Hybrid Sync
 export class AttendanceStore {
   // --- SETTINGS ---
   static getSettings(): SystemSettings {
@@ -127,7 +137,6 @@ export class AttendanceStore {
     let savedEmployee: Employee;
 
     if (employee.id) {
-      // Edit
       const index = employees.findIndex((e) => e.id === employee.id);
       if (index !== -1) {
         employees[index] = { ...employees[index], ...employee } as Employee;
@@ -137,7 +146,6 @@ export class AttendanceStore {
         employees.push(savedEmployee);
       }
     } else {
-      // New
       savedEmployee = {
         ...employee,
         id: Date.now().toString(),
@@ -187,7 +195,6 @@ export class AttendanceStore {
     if (typeof window === 'undefined') return [];
     const data = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
     if (!data) {
-      // Seed some sample data for realistic view
       const sampleAttendance = this.generateSampleAttendance();
       localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(sampleAttendance));
       return sampleAttendance;
@@ -267,7 +274,6 @@ export class AttendanceStore {
 
     localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(allRecords));
 
-    // Save Audit Log
     const employees = this.getEmployees();
     const emp = employees.find((e) => e.id === record.employee_id);
     this.addAuditLog({
@@ -296,7 +302,6 @@ export class AttendanceStore {
     return record;
   }
 
-  // Set or manual record for past date or custom status (Absent, Mission, Leave, Off)
   static upsertAttendance(
     employeeId: string,
     date: string,
@@ -361,12 +366,11 @@ export class AttendanceStore {
     }
   }
 
-  // Seed data helper
   private static generateSampleAttendance(): AttendanceRecord[] {
     const records: AttendanceRecord[] = [];
-    const today = getTodayDateString(); // e.g. 2026-08-09
+    const today = getTodayDateString();
     
-    // Today's sample records for El-Hosseiny Air Conditioning
+    // Sample records for the new 24 employees list
     records.push(
       { id: 'att-1', employee_id: '1', date: today, check_in_time: '08:55', original_check_in_time: '08:55', status: 'present', created_at: new Date().toISOString() },
       { id: 'att-2', employee_id: '2', date: today, check_in_time: '09:45', original_check_in_time: '09:45', status: 'present', created_at: new Date().toISOString() },
