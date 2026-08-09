@@ -24,16 +24,16 @@ export const EditAttendanceModal: React.FC<EditAttendanceModalProps> = ({
   const [newStatus, setNewStatus] = useState<AttendanceStatus>(record.status || 'present');
   const [notes, setNotes] = useState(record.notes || '');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    AttendanceStore.editAttendanceRecord(
+    await AttendanceStore.editAttendanceRecord(
       record.id,
       newTime,
       newStatus,
       notes,
       'الإدارة'
     );
-    onRefreshData();
+    await onRefreshData();
     onClose();
   };
 

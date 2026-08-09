@@ -94,8 +94,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   );
 
   // Quick Check-in handler
-  const handleQuickCheckIn = (emp: Employee) => {
-    const result = AttendanceStore.recordCheckIn(emp.id, todayStr);
+  const handleQuickCheckIn = async (emp: Employee) => {
+    const result = await AttendanceStore.recordCheckIn(emp.id, todayStr);
 
     if (result.isDuplicate && result.record) {
       setDuplicateWarning({
@@ -105,7 +105,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         record: result.record,
       });
     } else {
-      onRefreshData();
+      await onRefreshData();
     }
   };
 

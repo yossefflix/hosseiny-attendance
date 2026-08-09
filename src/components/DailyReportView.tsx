@@ -10,7 +10,7 @@ interface DailyReportViewProps {
   employees: Employee[];
   attendanceRecords: AttendanceRecord[];
   onOpenEditModal: (record: AttendanceRecord) => void;
-  onUpsertRecord: (empId: string, date: string, status: any) => AttendanceRecord | undefined;
+  onUpsertRecord: (empId: string, date: string, status: any) => Promise<AttendanceRecord>;
 }
 
 export const DailyReportView: React.FC<DailyReportViewProps> = ({
@@ -178,13 +178,12 @@ export const DailyReportView: React.FC<DailyReportViewProps> = ({
                     </td>
                     <td className="px-5 py-3.5">
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           if (rec) {
                             onOpenEditModal(rec);
                           } else {
-                            // Create record for absent employee to edit
-                            const newRec = onUpsertRecord(emp.id, selectedDate, 'present');
-                            if (newRec) onOpenEditModal(newRec as any);
+                            const newRec = await onUpsertRecord(emp.id, selectedDate, 'present');
+                            if (newRec) onOpenEditModal(newRec);
                           }
                         }}
                         className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-amber-400 hover:bg-slate-700 transition-all border border-slate-700"

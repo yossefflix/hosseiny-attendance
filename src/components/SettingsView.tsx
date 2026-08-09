@@ -20,10 +20,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onRefreshD
 
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    AttendanceStore.saveSettings(formData);
-    onRefreshData();
+    await AttendanceStore.saveSettings(formData);
+    await onRefreshData();
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
   };

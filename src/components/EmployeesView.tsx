@@ -49,11 +49,11 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
     setIsAddModalOpen(true);
   };
 
-  const handleSubmitForm = (e: React.FormEvent) => {
+  const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
 
-    AttendanceStore.saveEmployee({
+    await AttendanceStore.saveEmployee({
       ...(editingEmployee ? { id: editingEmployee.id } : {}),
       name: formData.name.trim(),
       phone: formData.phone.trim(),
@@ -62,18 +62,18 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
     });
 
     setIsAddModalOpen(false);
-    onRefreshData();
+    await onRefreshData();
   };
 
-  const handleToggleStatus = (emp: Employee) => {
-    AttendanceStore.toggleEmployeeStatus(emp.id);
-    onRefreshData();
+  const handleToggleStatus = async (emp: Employee) => {
+    await AttendanceStore.toggleEmployeeStatus(emp.id);
+    await onRefreshData();
   };
 
-  const handleDeleteEmployee = (emp: Employee) => {
+  const handleDeleteEmployee = async (emp: Employee) => {
     if (confirm(`هل أنت تأكد من حذف الموظف "${emp.name}"؟`)) {
-      AttendanceStore.deleteEmployee(emp.id);
-      onRefreshData();
+      await AttendanceStore.deleteEmployee(emp.id);
+      await onRefreshData();
     }
   };
 

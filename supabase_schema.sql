@@ -47,7 +47,7 @@ CREATE TABLE audit_logs (
 );
 
 -- 4. جدول الإعدادات (settings)
-CREATE TABLE settings (
+CREATE TABLE settings 
     id INT PRIMARY KEY DEFAULT 1,
     work_start_time TIME NOT NULL DEFAULT '09:00:00',
     late_start_time TIME NOT NULL DEFAULT '10:00:00',
