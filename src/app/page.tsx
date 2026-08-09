@@ -14,6 +14,7 @@ import { SettingsView } from '@/components/SettingsView';
 import { Employee, AttendanceRecord, AuditLog, SystemSettings } from '@/types';
 import { AttendanceStore, getTodayDateString } from '@/lib/store';
 import { PasswordGate } from '@/components/PasswordGate';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -68,6 +69,21 @@ export default function Home() {
     const yearNum = now.getFullYear();
 
     setTodayArabicDateStr(`${dayName} ${dayNum} ${monthName} ${yearNum}`);
+
+    // Live Realtime Subscriptions across all connected devices
+    if (isSupabaseConfigured && supabase) {
+      const client = supabase;
+      const channel = client
+        .channel('schema-db-changes')
+        .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+          loadData();
+        })
+        .subscribe();
+
+      return () => {
+        client.removeChannel(channel);
+      };
+    }
   }, []);
 
   const handleOpenEditModal = (record: AttendanceRecord) => {

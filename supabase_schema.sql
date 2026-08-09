@@ -47,7 +47,7 @@ CREATE TABLE audit_logs (
 );
 
 -- 4. جدول الإعدادات (settings)
-CREATE TABLE settings 
+CREATE TABLE settings (
     id INT PRIMARY KEY DEFAULT 1,
     work_start_time TIME NOT NULL DEFAULT '09:00:00',
     late_start_time TIME NOT NULL DEFAULT '10:00:00',
@@ -65,6 +65,9 @@ CREATE POLICY "Public employees access" ON employees FOR ALL USING (true) WITH C
 CREATE POLICY "Public attendance access" ON attendance FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public audit_logs access" ON audit_logs FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public settings access" ON settings FOR ALL USING (true) WITH CHECK (true);
+
+-- تفعيل ميزة البث المباشر اللحظي (Realtime Live Replication) بين الأجهزة
+ALTER PUBLICATION supabase_realtime ADD TABLE employees, attendance, audit_logs, settings;
 
 -- بيانات أولية افتراضية لمواعيد الدوام
 INSERT INTO settings (id, work_start_time, late_start_time, severe_late_time)

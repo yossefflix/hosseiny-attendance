@@ -61,7 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, todayDa
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 inline-block"></span>
               {isSupabaseConfigured ? (
                 <span className="text-emerald-400 flex items-center gap-1">
-                  <CloudCheck className="w-3.5 h-3.5" /> مصل بسحابة Supabase
+                  <CloudCheck className="w-3.5 h-3.5" /> متصل سحابياً والبث اللحظي مباشر (Realtime Live)
                 </span>
               ) : (
                 <span className="text-slate-400 flex items-center gap-1">
