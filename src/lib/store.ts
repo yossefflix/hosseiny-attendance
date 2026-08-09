@@ -2,10 +2,10 @@ import { Employee, AttendanceRecord, AuditLog, SystemSettings, AttendanceStatus 
 import { supabase, isSupabaseConfigured, notifyRealtimeDataChange } from './supabase';
 
 const STORAGE_KEYS = {
-  EMPLOYEES: 'hosseiny_employees_v5',
-  ATTENDANCE: 'hosseiny_attendance_v5',
-  AUDIT_LOGS: 'hosseiny_audit_logs_v5',
-  SETTINGS: 'hosseiny_settings_v5',
+  EMPLOYEES: 'hosseiny_employees_v6',
+  ATTENDANCE: 'hosseiny_attendance_v6',
+  AUDIT_LOGS: 'hosseiny_audit_logs_v6',
+  SETTINGS: 'hosseiny_settings_v6',
 };
 
 export const DEFAULT_SETTINGS: SystemSettings = {
@@ -329,7 +329,7 @@ export class AttendanceStore {
     }
 
     if (isSupabaseConfigured && supabase) {
-      await supabase.from('attendance').insert({
+      await supabase.from('attendance').upsert({
         id: newRecord.id,
         employee_id: employeeId,
         date,
@@ -337,7 +337,7 @@ export class AttendanceStore {
         original_check_in_time: `${checkInTime}:00`,
         status,
         edited: false,
-      });
+      }, { onConflict: 'employee_id,date' });
       notifyRealtimeDataChange();
     }
 
@@ -445,7 +445,7 @@ export class AttendanceStore {
         status,
         edited: true,
         notes: notes,
-      });
+      }, { onConflict: 'employee_id,date' });
       notifyRealtimeDataChange();
     }
 

@@ -5,12 +5,19 @@ const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZi
 
 const supabase = createClient(url, key);
 
-async function checkDateType() {
-  const { data } = await supabase.from('attendance').select('*');
-  console.log('Returned attendance rows from Supabase:', data);
-  if (data && data.length > 0) {
-    console.log('Date field type & format:', typeof data[0].date, '->', JSON.stringify(data[0].date));
-  }
+async function testUpsert() {
+  console.log('Testing Attendance Upsert...');
+  const { data, error } = await supabase.from('attendance').upsert({
+    id: `att-${Date.now()}`,
+    employee_id: 'emp-2',
+    date: '2026-08-09',
+    check_in_time: '09:45:00',
+    original_check_in_time: '09:45:00',
+    status: 'present',
+    edited: false
+  }, { onConflict: 'employee_id,date' }).select();
+
+  console.log('Upsert result for emp-2:', { data, error });
 }
 
-checkDateType();
+testUpsert();
