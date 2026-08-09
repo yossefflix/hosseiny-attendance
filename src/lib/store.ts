@@ -1,6 +1,13 @@
 import { Employee, AttendanceRecord, AuditLog, SystemSettings, AttendanceStatus } from '@/types';
 import { supabase, isSupabaseConfigured } from './supabase';
 
+const STORAGE_KEYS = {
+  EMPLOYEES: 'hosseiny_employees_v5',
+  ATTENDANCE: 'hosseiny_attendance_v5',
+  AUDIT_LOGS: 'hosseiny_audit_logs_v5',
+  SETTINGS: 'hosseiny_settings_v5',
+};
+
 export const DEFAULT_SETTINGS: SystemSettings = {
   work_start_time: '09:00',
   late_start_time: '10:00',
@@ -83,87 +90,132 @@ export function formatArabicTime(timeStr?: string): string {
   return `${formattedHour}:${m} ${ampm}`;
 }
 
-// Memory Cache during active session (NO LocalStorage Caching to prevent stale data)
-let inMemoryEmployees: Employee[] = INITIAL_EMPLOYEES;
-let inMemoryAttendance: AttendanceRecord[] = [];
-let inMemoryAuditLogs: AuditLog[] = [];
-let inMemorySettings: SystemSettings = DEFAULT_SETTINGS;
-
 export class AttendanceStore {
-  // --- DIRECT LIVE SUPABASE FETCHES (NO BROWSER CACHE) ---
+  // --- LOCAL PERSISTENCE HELPERS ---
+  static getEmployees(): Employee[] {
+    if (typeof window === 'undefined') return INITIAL_EMPLOYEES;
+    const data = localStorage.getItem(STORAGE_KEYS.EMPLOYEES);
+    if (!data) {
+      localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(INITIAL_EMPLOYEES));
+      return INITIAL_EMPLOYEES;
+    }
+    try {
+      return JSON.parse(data);
+    } catch {
+      return INITIAL_EMPLOYEES;
+    }
+  }
+
+  static getAttendance(): AttendanceRecord[] {
+    if (typeof window === 'undefined') return [];
+    const data = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
+    if (!data) return [];
+    try {
+      return JSON.parse(data);
+    } catch {
+      return [];
+    }
+  }
+
+  static getAuditLogs(): AuditLog[] {
+    if (typeof window === 'undefined') return [];
+    const data = localStorage.getItem(STORAGE_KEYS.AUDIT_LOGS);
+    if (!data) return [];
+    try {
+      return JSON.parse(data);
+    } catch {
+      return [];
+    }
+  }
+
+  static getSettings(): SystemSettings {
+    if (typeof window === 'undefined') return DEFAULT_SETTINGS;
+    const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+    if (!data) return DEFAULT_SETTINGS;
+    try {
+      return JSON.parse(data);
+    } catch {
+      return DEFAULT_SETTINGS;
+    }
+  }
+
+  // --- ASYNC CLOUD SYNC FROM SUPABASE ---
   static async fetchEmployeesAsync(): Promise<Employee[]> {
     if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.from('employees').select('*').order('created_at', { ascending: true });
-      if (!error && data) {
-        inMemoryEmployees = data as Employee[];
-        return inMemoryEmployees;
+      try {
+        const { data, error } = await supabase.from('employees').select('*').order('created_at', { ascending: true });
+        if (!error && data && data.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(data));
+          return data as Employee[];
+        }
+      } catch (err) {
+        console.error('Supabase fetchEmployees error:', err);
       }
     }
-    return inMemoryEmployees;
+    return this.getEmployees();
   }
 
   static async fetchAttendanceAsync(): Promise<AttendanceRecord[]> {
     if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.from('attendance').select('*').order('created_at', { ascending: true });
-      if (!error && data) {
-        // Strip seconds if present in check_in_time
-        inMemoryAttendance = data.map((item: any) => ({
-          ...item,
-          check_in_time: item.check_in_time ? item.check_in_time.slice(0, 5) : '09:00',
-          original_check_in_time: item.original_check_in_time ? item.original_check_in_time.slice(0, 5) : item.check_in_time?.slice(0, 5),
-        })) as AttendanceRecord[];
-        return inMemoryAttendance;
+      try {
+        const { data, error } = await supabase.from('attendance').select('*').order('created_at', { ascending: true });
+        if (!error && data) {
+          const formatted: AttendanceRecord[] = data.map((item: any) => ({
+            ...item,
+            date: item.date ? String(item.date).slice(0, 10) : getTodayDateString(),
+            check_in_time: item.check_in_time ? String(item.check_in_time).slice(0, 5) : '09:00',
+            original_check_in_time: item.original_check_in_time ? String(item.original_check_in_time).slice(0, 5) : String(item.check_in_time).slice(0, 5),
+          }));
+          localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(formatted));
+          return formatted;
+        }
+      } catch (err) {
+        console.error('Supabase fetchAttendance error:', err);
       }
     }
-    return inMemoryAttendance;
+    return this.getAttendance();
   }
 
   static async fetchAuditLogsAsync(): Promise<AuditLog[]> {
     if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.from('audit_logs').select('*').order('changed_at', { ascending: false });
-      if (!error && data) {
-        inMemoryAuditLogs = data as AuditLog[];
-        return inMemoryAuditLogs;
+      try {
+        const { data, error } = await supabase.from('audit_logs').select('*').order('changed_at', { ascending: false });
+        if (!error && data) {
+          localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(data));
+          return data as AuditLog[];
+        }
+      } catch (err) {
+        console.error('Supabase fetchAuditLogs error:', err);
       }
     }
-    return inMemoryAuditLogs;
+    return this.getAuditLogs();
   }
 
   static async fetchSettingsAsync(): Promise<SystemSettings> {
     if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.from('settings').select('*').eq('id', 1).single();
-      if (!error && data) {
-        inMemorySettings = {
-          work_start_time: data.work_start_time ? data.work_start_time.slice(0, 5) : '09:00',
-          late_start_time: data.late_start_time ? data.late_start_time.slice(0, 5) : '10:00',
-          severe_late_time: data.severe_late_time ? data.severe_late_time.slice(0, 5) : '11:00',
-        };
-        return inMemorySettings;
+      try {
+        const { data, error } = await supabase.from('settings').select('*').eq('id', 1).single();
+        if (!error && data) {
+          const fetched: SystemSettings = {
+            work_start_time: data.work_start_time ? String(data.work_start_time).slice(0, 5) : '09:00',
+            late_start_time: data.late_start_time ? String(data.late_start_time).slice(0, 5) : '10:00',
+            severe_late_time: data.severe_late_time ? String(data.severe_late_time).slice(0, 5) : '11:00',
+          };
+          localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(fetched));
+          return fetched;
+        }
+      } catch (err) {
+        console.error('Supabase fetchSettings error:', err);
       }
     }
-    return inMemorySettings;
+    return this.getSettings();
   }
 
-  // Synchronous getters (read from in-memory session)
-  static getEmployees(): Employee[] {
-    return inMemoryEmployees;
-  }
-
-  static getAttendance(): AttendanceRecord[] {
-    return inMemoryAttendance;
-  }
-
-  static getAuditLogs(): AuditLog[] {
-    return inMemoryAuditLogs;
-  }
-
-  static getSettings(): SystemSettings {
-    return inMemorySettings;
-  }
-
-  // --- LIVE SUPABASE MUTATIONS ---
+  // --- MUTATIONS WITH DUAL INSTANT LOCAL + CLOUD PERSISTENCE ---
   static async saveSettings(newSettings: SystemSettings): Promise<void> {
-    inMemorySettings = newSettings;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
+    }
     if (isSupabaseConfigured && supabase) {
       await supabase.from('settings').upsert({
         id: 1,
@@ -176,16 +228,17 @@ export class AttendanceStore {
   }
 
   static async saveEmployee(employee: Omit<Employee, 'id'> & { id?: string }): Promise<Employee> {
+    const employees = this.getEmployees();
     let savedEmployee: Employee;
 
     if (employee.id) {
-      const index = inMemoryEmployees.findIndex((e) => e.id === employee.id);
+      const index = employees.findIndex((e) => e.id === employee.id);
       if (index !== -1) {
-        inMemoryEmployees[index] = { ...inMemoryEmployees[index], ...employee } as Employee;
-        savedEmployee = inMemoryEmployees[index];
+        employees[index] = { ...employees[index], ...employee } as Employee;
+        savedEmployee = employees[index];
       } else {
         savedEmployee = { ...employee, id: `emp-${Date.now()}` } as Employee;
-        inMemoryEmployees.push(savedEmployee);
+        employees.push(savedEmployee);
       }
     } else {
       savedEmployee = {
@@ -193,7 +246,11 @@ export class AttendanceStore {
         id: `emp-${Date.now()}`,
         created_at: new Date().toISOString(),
       } as Employee;
-      inMemoryEmployees.push(savedEmployee);
+      employees.push(savedEmployee);
+    }
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
     }
 
     if (isSupabaseConfigured && supabase) {
@@ -210,9 +267,13 @@ export class AttendanceStore {
   }
 
   static async toggleEmployeeStatus(id: string): Promise<void> {
-    const employee = inMemoryEmployees.find((e) => e.id === id);
+    const employees = this.getEmployees();
+    const employee = employees.find((e) => e.id === id);
     if (employee) {
       employee.status = employee.status === 'active' ? 'inactive' : 'active';
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
+      }
       if (isSupabaseConfigured && supabase) {
         await supabase.from('employees').update({ status: employee.status }).eq('id', id);
       }
@@ -220,14 +281,19 @@ export class AttendanceStore {
   }
 
   static async deleteEmployee(id: string): Promise<void> {
-    inMemoryEmployees = inMemoryEmployees.filter((e) => e.id !== id);
+    let employees = this.getEmployees();
+    employees = employees.filter((e) => e.id !== id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
+    }
     if (isSupabaseConfigured && supabase) {
       await supabase.from('employees').delete().eq('id', id);
     }
   }
 
   static async recordCheckIn(employeeId: string, date: string, customTime?: string): Promise<{ success: boolean; record?: AttendanceRecord; isDuplicate?: boolean; existingTime?: string }> {
-    const existing = inMemoryAttendance.find((r) => r.employee_id === employeeId && r.date === date);
+    const allRecords = this.getAttendance();
+    const existing = allRecords.find((r) => r.employee_id === employeeId && r.date === date);
 
     if (existing) {
       return {
@@ -253,7 +319,10 @@ export class AttendanceStore {
       created_at: new Date().toISOString(),
     };
 
-    inMemoryAttendance.push(newRecord);
+    allRecords.push(newRecord);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(allRecords));
+    }
 
     if (isSupabaseConfigured && supabase) {
       await supabase.from('attendance').insert({
@@ -277,7 +346,8 @@ export class AttendanceStore {
     notes?: string,
     changedBy: string = 'الإدارة'
   ): Promise<AttendanceRecord | null> {
-    const record = inMemoryAttendance.find((r) => r.id === recordId);
+    const allRecords = this.getAttendance();
+    const record = allRecords.find((r) => r.id === recordId);
     if (!record) return null;
 
     const oldTime = record.check_in_time;
@@ -290,7 +360,12 @@ export class AttendanceStore {
     record.edited_at = new Date().toISOString();
     if (notes) record.notes = notes;
 
-    const emp = inMemoryEmployees.find((e) => e.id === record.employee_id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(allRecords));
+    }
+
+    const employees = this.getEmployees();
+    const emp = employees.find((e) => e.id === record.employee_id);
 
     const auditLogRecord: AuditLog = {
       id: `log-${Date.now()}`,
@@ -327,7 +402,8 @@ export class AttendanceStore {
     checkInTime: string = '09:00',
     notes?: string
   ): Promise<AttendanceRecord> {
-    let record = inMemoryAttendance.find((r) => r.employee_id === employeeId && r.date === date);
+    const allRecords = this.getAttendance();
+    let record = allRecords.find((r) => r.employee_id === employeeId && r.date === date);
 
     if (record) {
       record.status = status;
@@ -346,7 +422,11 @@ export class AttendanceStore {
         notes,
         created_at: new Date().toISOString(),
       };
-      inMemoryAttendance.push(record);
+      allRecords.push(record);
+    }
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(allRecords));
     }
 
     if (isSupabaseConfigured && supabase) {
@@ -366,7 +446,11 @@ export class AttendanceStore {
   }
 
   static async addAuditLog(log: AuditLog): Promise<void> {
-    inMemoryAuditLogs.unshift(log);
+    const logs = this.getAuditLogs();
+    logs.unshift(log);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(logs));
+    }
 
     if (isSupabaseConfigured && supabase) {
       await supabase.from('audit_logs').insert({
