@@ -9,5 +9,31 @@ export const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || DEFA
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
 export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      realtime: {
+        params: {
+          eventsPerSecond: 10,
+        },
+      },
+    })
   : null;
+
+// Realtime Helper for Instant Cross-Device Broadcast
+export function notifyRealtimeDataChange() {
+  if (isSupabaseConfigured && supabase) {
+    const channel = supabase.channel('hosseiny-live-broadcast');
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        channel.send({
+          type: 'broadcast',
+          event: 'data_changed',
+          payload: { timestamp: Date.now() },
+        }).then(() => {
+          setTimeout(() => {
+            supabase.removeChannel(channel);
+          }, 1000);
+        });
+      }
+    });
+  }
+}

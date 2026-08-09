@@ -1,5 +1,5 @@
 import { Employee, AttendanceRecord, AuditLog, SystemSettings, AttendanceStatus } from '@/types';
-import { supabase, isSupabaseConfigured } from './supabase';
+import { supabase, isSupabaseConfigured, notifyRealtimeDataChange } from './supabase';
 
 const STORAGE_KEYS = {
   EMPLOYEES: 'hosseiny_employees_v5',
@@ -224,6 +224,7 @@ export class AttendanceStore {
         severe_late_time: `${newSettings.severe_late_time}:00`,
         updated_at: new Date().toISOString(),
       });
+      notifyRealtimeDataChange();
     }
   }
 
@@ -261,6 +262,7 @@ export class AttendanceStore {
         job_title: savedEmployee.job_title,
         status: savedEmployee.status,
       });
+      notifyRealtimeDataChange();
     }
 
     return savedEmployee;
@@ -276,6 +278,7 @@ export class AttendanceStore {
       }
       if (isSupabaseConfigured && supabase) {
         await supabase.from('employees').update({ status: employee.status }).eq('id', id);
+        notifyRealtimeDataChange();
       }
     }
   }
@@ -288,6 +291,7 @@ export class AttendanceStore {
     }
     if (isSupabaseConfigured && supabase) {
       await supabase.from('employees').delete().eq('id', id);
+      notifyRealtimeDataChange();
     }
   }
 
@@ -334,6 +338,7 @@ export class AttendanceStore {
         status,
         edited: false,
       });
+      notifyRealtimeDataChange();
     }
 
     return { success: true, record: newRecord };
@@ -390,6 +395,7 @@ export class AttendanceStore {
         edited_at: record.edited_at,
         notes: notes,
       }).eq('id', recordId);
+      notifyRealtimeDataChange();
     }
 
     return record;
@@ -440,6 +446,7 @@ export class AttendanceStore {
         edited: true,
         notes: notes,
       });
+      notifyRealtimeDataChange();
     }
 
     return record;

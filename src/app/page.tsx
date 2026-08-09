@@ -70,18 +70,27 @@ export default function Home() {
 
     setTodayArabicDateStr(`${dayName} ${dayNum} ${monthName} ${yearNum}`);
 
-    // Live Realtime Subscriptions across all connected devices
+    // Live Realtime Subscriptions & Broadcast across all connected devices
     if (isSupabaseConfigured && supabase) {
       const client = supabase;
-      const channel = client
+
+      const dbChannel = client
         .channel('schema-db-changes')
         .on('postgres_changes', { event: '*', schema: 'public' }, () => {
           loadData();
         })
         .subscribe();
 
+      const broadcastChannel = client
+        .channel('hosseiny-live-broadcast')
+        .on('broadcast', { event: 'data_changed' }, () => {
+          loadData();
+        })
+        .subscribe();
+
       return () => {
-        client.removeChannel(channel);
+        client.removeChannel(dbChannel);
+        client.removeChannel(broadcastChannel);
       };
     }
   }, []);
