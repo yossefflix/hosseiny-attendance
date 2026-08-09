@@ -3,7 +3,6 @@ const http = require('http');
 const { Server } = require('socket.io');
 const next = require('next');
 const cors = require('cors');
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
 
@@ -12,150 +11,91 @@ const port = parseInt(process.env.PORT || '3000', 10);
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
-// SQLite Database Setup
-const dbPath = path.join(__dirname, 'database.sqlite');
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('❌ Error opening SQLite database:', err);
-  } else {
-    console.log('🟢 Connected to local SQLite database:', dbPath);
+// Atomic File-Based Database Setup
+const dbFilePath = path.join(__dirname, 'database.json');
+
+const INITIAL_EMPLOYEES = [
+  { id: 'emp-1', name: 'احمد سريع', phone: '', job_title: 'فني تكييف', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-2', name: 'محمد سمير', phone: '', job_title: 'فني تكييف', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-3', name: 'عمر حسن', phone: '', job_title: 'فني صيانة', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-4', name: 'شريف محمود', phone: '', job_title: 'فني تكييف', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-5', name: 'مؤمن', phone: '', job_title: 'مساعد فني', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-6', name: 'كريم عيد', phone: '', job_title: 'فني تركيبات', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-7', name: 'عمرو خالد', phone: '', job_title: 'مهندس تبريد وتكييف', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-8', name: 'سيد ربيع', phone: '', job_title: 'فني صيانة', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-9', name: 'خالد سيد', phone: '', job_title: 'فني تكييف', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-10', name: 'شريف احمد', phone: '', job_title: 'فني تركيبات', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-11', name: 'عبد الله ممدوح', phone: '', job_title: 'فني تكييف', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-12', name: 'احمد شعبان', phone: '', job_title: 'فني صيانة', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-13', name: 'محمود احمد', phone: '', job_title: 'مشرف موقع', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-14', name: 'احمد جلال', phone: '', job_title: 'فني تكييف', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-15', name: 'علاء هشام', phone: '', job_title: 'مهندس تبريد', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-16', name: 'عبد الرحمن حسن', phone: '', job_title: 'فني صيانة', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-17', name: 'اشرف ابراهيم', phone: '', job_title: 'فني تكييف', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-18', name: 'يوسف شعبان', phone: '', job_title: 'مساعد فني', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-19', name: 'يوسف احمد', phone: '', job_title: 'فني تركيبات', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-20', name: 'منار سيد', phone: '', job_title: 'إداري', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-21', name: 'زينب علي', phone: '', job_title: 'إداري', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-22', name: 'ملك ناصر', phone: '', job_title: 'إداري', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-23', name: 'حنين خميس', phone: '', job_title: 'إداري', status: 'active', created_at: new Date().toISOString() },
+  { id: 'emp-24', name: 'لارا هيثم', phone: '', job_title: 'إداري', status: 'active', created_at: new Date().toISOString() },
+];
+
+function loadDb() {
+  if (!fs.existsSync(dbFilePath)) {
+    const initialDb = {
+      employees: INITIAL_EMPLOYEES,
+      attendance: [],
+      audit_logs: [],
+      settings: {
+        work_start_time: '09:00',
+        late_start_time: '10:00',
+        severe_late_time: '11:00',
+      },
+    };
+    fs.writeFileSync(dbFilePath, JSON.stringify(initialDb, null, 2), 'utf8');
+    return initialDb;
   }
-});
-
-// Helper for Promisified SQLite Database Queries
-function dbRun(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve(this);
-    });
-  });
-}
-
-function dbAll(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
-}
-
-function dbGet(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
-}
-
-// Initialize Tables & Seed 24 Employees
-async function initDatabase() {
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS employees (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      phone TEXT DEFAULT '',
-      job_title TEXT NOT NULL DEFAULT 'فني تكييف',
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS attendance (
-      id TEXT PRIMARY KEY,
-      employee_id TEXT NOT NULL,
-      date TEXT NOT NULL,
-      check_in_time TEXT NOT NULL,
-      original_check_in_time TEXT,
-      status TEXT NOT NULL,
-      edited INTEGER DEFAULT 0,
-      edited_at TEXT,
-      notes TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(employee_id, date)
-    );
-  `);
-
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS audit_logs (
-      id TEXT PRIMARY KEY,
-      attendance_id TEXT,
-      employee_id TEXT,
-      employee_name TEXT,
-      old_time TEXT,
-      new_time TEXT,
-      old_status TEXT,
-      new_status TEXT,
-      changed_by TEXT DEFAULT 'الإدارة',
-      changed_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS settings (
-      id INTEGER PRIMARY KEY DEFAULT 1,
-      work_start_time TEXT NOT NULL DEFAULT '09:00',
-      late_start_time TEXT NOT NULL DEFAULT '10:00',
-      severe_late_time TEXT NOT NULL DEFAULT '11:00',
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  // Seed default settings if empty
-  const settingsCount = await dbGet('SELECT COUNT(*) as count FROM settings');
-  if (settingsCount.count === 0) {
-    await dbRun(
-      'INSERT INTO settings (id, work_start_time, late_start_time, severe_late_time) VALUES (1, "09:00", "10:00", "11:00")'
-    );
-  }
-
-  // Seed 24 El-Hosseiny Air Conditioning Employees if empty
-  const empCount = await dbGet('SELECT COUNT(*) as count FROM employees');
-  if (empCount.count === 0) {
-    const initialEmps = [
-      ['emp-1', 'احمد سريع', '', 'فني تكييف', 'active'],
-      ['emp-2', 'محمد سمير', '', 'فني تكييف', 'active'],
-      ['emp-3', 'عمر حسن', '', 'فني صيانة', 'active'],
-      ['emp-4', 'شريف محمود', '', 'فني تكييف', 'active'],
-      ['emp-5', 'مؤمن', '', 'مساعد فني', 'active'],
-      ['emp-6', 'كريم عيد', '', 'فني تركيبات', 'active'],
-      ['emp-7', 'عمرو خالد', '', 'مهندس تبريد وتكييف', 'active'],
-      ['emp-8', 'سيد ربيع', '', 'فني صيانة', 'active'],
-      ['emp-9', 'خالد سيد', '', 'فني تكييف', 'active'],
-      ['emp-10', 'شريف احمد', '', 'فني تركيبات', 'active'],
-      ['emp-11', 'عبد الله ممدوح', '', 'فني تكييف', 'active'],
-      ['emp-12', 'احمد شعبان', '', 'فني صيانة', 'active'],
-      ['emp-13', 'محمود احمد', '', 'مشرف موقع', 'active'],
-      ['emp-14', 'احمد جلال', '', 'فني تكييف', 'active'],
-      ['emp-15', 'علاء هشام', '', 'مهندس تبريد', 'active'],
-      ['emp-16', 'عبد الرحمن حسن', '', 'فني صيانة', 'active'],
-      ['emp-17', 'اشرف ابراهيم', '', 'فني تكييف', 'active'],
-      ['emp-18', 'يوسف شعبان', '', 'مساعد فني', 'active'],
-      ['emp-19', 'يوسف احمد', '', 'فني تركيبات', 'active'],
-      ['emp-20', 'منار سيد', '', 'إداري', 'active'],
-      ['emp-21', 'زينب علي', '', 'إداري', 'active'],
-      ['emp-22', 'ملك ناصر', '', 'إداري', 'active'],
-      ['emp-23', 'حنين خميس', '', 'إداري', 'active'],
-      ['emp-24', 'لارا هيثم', '', 'إداري', 'active'],
-    ];
-
-    for (const emp of initialEmps) {
-      await dbRun(
-        'INSERT OR IGNORE INTO employees (id, name, phone, job_title, status) VALUES (?, ?, ?, ?, ?)',
-        emp
-      );
+  try {
+    const content = fs.readFileSync(dbFilePath, 'utf8');
+    const data = JSON.parse(content);
+    if (!data.employees || data.employees.length === 0) {
+      data.employees = INITIAL_EMPLOYEES;
     }
+    if (!data.settings) {
+      data.settings = {
+        work_start_time: '09:00',
+        late_start_time: '10:00',
+        severe_late_time: '11:00',
+      };
+    }
+    return data;
+  } catch (err) {
+    console.error('Error reading database file, resetting:', err);
+    const initialDb = {
+      employees: INITIAL_EMPLOYEES,
+      attendance: [],
+      audit_logs: [],
+      settings: {
+        work_start_time: '09:00',
+        late_start_time: '10:00',
+        severe_late_time: '11:00',
+      },
+    };
+    fs.writeFileSync(dbFilePath, JSON.stringify(initialDb, null, 2), 'utf8');
+    return initialDb;
   }
-
-  console.log('🟢 Database initialized with 24 El-Hosseiny Air Conditioning employees!');
 }
 
-app.prepare().then(async () => {
-  await initDatabase();
+function saveDb(data) {
+  try {
+    fs.writeFileSync(dbFilePath, JSON.stringify(data, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Error saving database file:', err);
+  }
+}
 
+app.prepare().then(() => {
   const expressApp = express();
   const server = http.createServer(expressApp);
 
@@ -185,210 +125,183 @@ app.prepare().then(async () => {
   // --- REST API ENDPOINTS ---
 
   // 1. EMPLOYEES
-  expressApp.get('/api/employees', async (req, res) => {
-    try {
-      const employees = await dbAll('SELECT * FROM employees ORDER BY rowid ASC');
-      res.json(employees);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+  expressApp.get('/api/employees', (req, res) => {
+    const db = loadDb();
+    res.json(db.employees);
   });
 
-  expressApp.post('/api/employees', async (req, res) => {
-    try {
-      const { id, name, phone, job_title, status } = req.body;
-      const empId = id || `emp-${Date.now()}`;
-      await dbRun(
-        `INSERT INTO employees (id, name, phone, job_title, status) VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET name=excluded.name, phone=excluded.phone, job_title=excluded.job_title, status=excluded.status`,
-        [empId, name, phone || '', job_title || 'فني تكييف', status || 'active']
-      );
-      broadcastUpdate();
-      const saved = await dbGet('SELECT * FROM employees WHERE id = ?', [empId]);
-      res.json(saved);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+  expressApp.post('/api/employees', (req, res) => {
+    const db = loadDb();
+    const { id, name, phone, job_title, status } = req.body;
+    const empId = id || `emp-${Date.now()}`;
+
+    const existingIdx = db.employees.findIndex((e) => e.id === empId);
+    const updatedEmp = {
+      id: empId,
+      name: name ? name.trim() : 'موظف',
+      phone: phone ? phone.trim() : '',
+      job_title: job_title ? job_title.trim() : 'فني تكييف',
+      status: status || 'active',
+      created_at: existingIdx !== -1 ? db.employees[existingIdx].created_at : new Date().toISOString(),
+    };
+
+    if (existingIdx !== -1) {
+      db.employees[existingIdx] = updatedEmp;
+    } else {
+      db.employees.push(updatedEmp);
     }
+
+    saveDb(db);
+    broadcastUpdate();
+    res.json(updatedEmp);
   });
 
-  expressApp.put('/api/employees/:id/toggle', async (req, res) => {
-    try {
-      const { id } = req.params;
-      const emp = await dbGet('SELECT * FROM employees WHERE id = ?', [id]);
-      if (!emp) return res.status(404).json({ error: 'Employee not found' });
+  expressApp.put('/api/employees/:id/toggle', (req, res) => {
+    const db = loadDb();
+    const { id } = req.params;
+    const emp = db.employees.find((e) => e.id === id);
+    if (!emp) return res.status(404).json({ error: 'Employee not found' });
 
-      const newStatus = emp.status === 'active' ? 'inactive' : 'active';
-      await dbRun('UPDATE employees SET status = ? WHERE id = ?', [newStatus, id]);
-      broadcastUpdate();
-      res.json({ success: true, status: newStatus });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+    emp.status = emp.status === 'active' ? 'inactive' : 'active';
+    saveDb(db);
+    broadcastUpdate();
+    res.json({ success: true, status: emp.status });
   });
 
-  expressApp.delete('/api/employees/:id', async (req, res) => {
-    try {
-      const { id } = req.params;
-      await dbRun('DELETE FROM employees WHERE id = ?', [id]);
-      broadcastUpdate();
-      res.json({ success: true });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+  expressApp.delete('/api/employees/:id', (req, res) => {
+    const db = loadDb();
+    const { id } = req.params;
+    db.employees = db.employees.filter((e) => e.id !== id);
+    saveDb(db);
+    broadcastUpdate();
+    res.json({ success: true });
   });
 
   // 2. ATTENDANCE
-  expressApp.get('/api/attendance', async (req, res) => {
-    try {
-      const records = await dbAll('SELECT * FROM attendance ORDER BY date DESC, check_in_time ASC');
-      // Normalize boolean edited
-      const formatted = records.map((r) => ({
-        ...r,
-        edited: Boolean(r.edited),
-      }));
-      res.json(formatted);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+  expressApp.get('/api/attendance', (req, res) => {
+    const db = loadDb();
+    res.json(db.attendance);
   });
 
-  expressApp.post('/api/attendance/checkin', async (req, res) => {
-    try {
-      const { id, employee_id, date, check_in_time, original_check_in_time, status } = req.body;
-      const existing = await dbGet('SELECT * FROM attendance WHERE employee_id = ? AND date = ?', [
+  expressApp.post('/api/attendance/checkin', (req, res) => {
+    const db = loadDb();
+    const { id, employee_id, date, check_in_time, original_check_in_time, status } = req.body;
+
+    const existing = db.attendance.find((r) => r.employee_id === employee_id && r.date === date);
+    if (existing) {
+      return res.json({ success: false, isDuplicate: true, record: existing, existingTime: existing.check_in_time });
+    }
+
+    const recId = id || `att-${Date.now()}`;
+    const newRecord = {
+      id: recId,
+      employee_id,
+      date,
+      check_in_time,
+      original_check_in_time: original_check_in_time || check_in_time,
+      status,
+      edited: false,
+      created_at: new Date().toISOString(),
+    };
+
+    db.attendance.push(newRecord);
+    saveDb(db);
+    broadcastUpdate();
+    res.json({ success: true, record: newRecord });
+  });
+
+  expressApp.put('/api/attendance/edit', (req, res) => {
+    const db = loadDb();
+    const { recordId, newTime, newStatus, notes, changedBy } = req.body;
+    const record = db.attendance.find((r) => r.id === recordId);
+    if (!record) return res.status(404).json({ error: 'Record not found' });
+
+    const oldTime = record.check_in_time;
+    const oldStatus = record.status;
+    const editedAt = new Date().toISOString();
+
+    record.original_check_in_time = record.original_check_in_time || oldTime;
+    record.check_in_time = newTime;
+    record.status = newStatus;
+    record.edited = true;
+    record.edited_at = editedAt;
+    if (notes) record.notes = notes;
+
+    const emp = db.employees.find((e) => e.id === record.employee_id);
+    const auditLogRecord = {
+      id: `log-${Date.now()}`,
+      attendance_id: recordId,
+      employee_id: record.employee_id,
+      employee_name: emp ? emp.name : 'موظف',
+      old_time: oldTime,
+      new_time: newTime,
+      old_status: oldStatus,
+      new_status: newStatus,
+      changed_by: changedBy || 'الإدارة',
+      changed_at: editedAt,
+    };
+
+    db.audit_logs.unshift(auditLogRecord);
+    saveDb(db);
+    broadcastUpdate();
+    res.json(record);
+  });
+
+  expressApp.post('/api/attendance/upsert', (req, res) => {
+    const db = loadDb();
+    const { id, employee_id, date, check_in_time, status, notes } = req.body;
+    let record = db.attendance.find((r) => r.employee_id === employee_id && r.date === date);
+
+    if (record) {
+      record.status = status;
+      record.check_in_time = check_in_time || '09:00';
+      if (notes) record.notes = notes;
+      record.edited = true;
+      record.edited_at = new Date().toISOString();
+    } else {
+      record = {
+        id: id || `att-${Date.now()}`,
         employee_id,
         date,
-      ]);
-
-      if (existing) {
-        return res.json({ success: false, isDuplicate: true, record: existing, existingTime: existing.check_in_time });
-      }
-
-      const recId = id || `att-${Date.now()}`;
-      await dbRun(
-        `INSERT INTO attendance (id, employee_id, date, check_in_time, original_check_in_time, status, edited)
-         VALUES (?, ?, ?, ?, ?, ?, 0)`,
-        [recId, employee_id, date, check_in_time, original_check_in_time || check_in_time, status]
-      );
-      broadcastUpdate();
-      const created = await dbGet('SELECT * FROM attendance WHERE id = ?', [recId]);
-      res.json({ success: true, record: created });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+        check_in_time: check_in_time || '09:00',
+        original_check_in_time: check_in_time || '09:00',
+        status,
+        notes,
+        edited: true,
+        created_at: new Date().toISOString(),
+      };
+      db.attendance.push(record);
     }
-  });
 
-  expressApp.put('/api/attendance/edit', async (req, res) => {
-    try {
-      const { recordId, newTime, newStatus, notes, changedBy } = req.body;
-      const record = await dbGet('SELECT * FROM attendance WHERE id = ?', [recordId]);
-      if (!record) return res.status(404).json({ error: 'Record not found' });
-
-      const oldTime = record.check_in_time;
-      const oldStatus = record.status;
-      const origTime = record.original_check_in_time || oldTime;
-      const editedAt = new Date().toISOString();
-
-      await dbRun(
-        `UPDATE attendance SET check_in_time = ?, original_check_in_time = ?, status = ?, edited = 1, edited_at = ?, notes = ? WHERE id = ?`,
-        [newTime, origTime, newStatus, editedAt, notes || '', recordId]
-      );
-
-      // Audit Log
-      const emp = await dbGet('SELECT name FROM employees WHERE id = ?', [record.employee_id]);
-      const logId = `log-${Date.now()}`;
-      await dbRun(
-        `INSERT INTO audit_logs (id, attendance_id, employee_id, employee_name, old_time, new_time, old_status, new_status, changed_by, changed_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          logId,
-          recordId,
-          record.employee_id,
-          emp ? emp.name : 'موظف',
-          oldTime,
-          newTime,
-          oldStatus,
-          newStatus,
-          changedBy || 'الإدارة',
-          editedAt,
-        ]
-      );
-
-      broadcastUpdate();
-      const updated = await dbGet('SELECT * FROM attendance WHERE id = ?', [recordId]);
-      res.json(updated);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  expressApp.post('/api/attendance/upsert', async (req, res) => {
-    try {
-      const { id, employee_id, date, check_in_time, status, notes } = req.body;
-      const recId = id || `att-${Date.now()}`;
-      await dbRun(
-        `INSERT INTO attendance (id, employee_id, date, check_in_time, original_check_in_time, status, edited, notes)
-         VALUES (?, ?, ?, ?, ?, ?, 1, ?)
-         ON CONFLICT(employee_id, date) DO UPDATE SET
-           status = excluded.status,
-           check_in_time = excluded.check_in_time,
-           notes = excluded.notes,
-           edited = 1,
-           edited_at = CURRENT_TIMESTAMP`,
-        [recId, employee_id, date, check_in_time || '09:00', check_in_time || '09:00', status, notes || '']
-      );
-      broadcastUpdate();
-      const result = await dbGet('SELECT * FROM attendance WHERE employee_id = ? AND date = ?', [employee_id, date]);
-      res.json(result);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+    saveDb(db);
+    broadcastUpdate();
+    res.json(record);
   });
 
   // 3. AUDIT LOGS
-  expressApp.get('/api/audit-logs', async (req, res) => {
-    try {
-      const logs = await dbAll('SELECT * FROM audit_logs ORDER BY changed_at DESC');
-      res.json(logs);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+  expressApp.get('/api/audit-logs', (req, res) => {
+    const db = loadDb();
+    res.json(db.audit_logs);
   });
 
   // 4. SETTINGS
-  expressApp.get('/api/settings', async (req, res) => {
-    try {
-      const settings = await dbGet('SELECT * FROM settings WHERE id = 1');
-      res.json(
-        settings || {
-          work_start_time: '09:00',
-          late_start_time: '10:00',
-          severe_late_time: '11:00',
-        }
-      );
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+  expressApp.get('/api/settings', (req, res) => {
+    const db = loadDb();
+    res.json(db.settings);
   });
 
-  expressApp.post('/api/settings', async (req, res) => {
-    try {
-      const { work_start_time, late_start_time, severe_late_time } = req.body;
-      await dbRun(
-        `INSERT INTO settings (id, work_start_time, late_start_time, severe_late_time, updated_at)
-         VALUES (1, ?, ?, ?, CURRENT_TIMESTAMP)
-         ON CONFLICT(id) DO UPDATE SET
-           work_start_time = excluded.work_start_time,
-           late_start_time = excluded.late_start_time,
-           severe_late_time = excluded.severe_late_time,
-           updated_at = CURRENT_TIMESTAMP`,
-        [work_start_time, late_start_time, severe_late_time]
-      );
-      broadcastUpdate();
-      res.json({ success: true });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+  expressApp.post('/api/settings', (req, res) => {
+    const db = loadDb();
+    const { work_start_time, late_start_time, severe_late_time } = req.body;
+    db.settings = {
+      work_start_time: work_start_time || '09:00',
+      late_start_time: late_start_time || '10:00',
+      severe_late_time: severe_late_time || '11:00',
+      updated_at: new Date().toISOString(),
+    };
+    saveDb(db);
+    broadcastUpdate();
+    res.json({ success: true });
   });
 
   // Next.js Handler for Frontend Pages

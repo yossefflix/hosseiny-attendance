@@ -2,9 +2,8 @@
 
 import React, { useState } from 'react';
 import { SystemSettings } from '@/types';
-import { Settings, Save, Clock, CloudCheck, CloudOff, Info } from 'lucide-react';
+import { Settings, Save, Clock, CloudCheck, Info } from 'lucide-react';
 import { AttendanceStore } from '@/lib/store';
-import { isSupabaseConfigured } from '@/lib/supabase';
 
 interface SettingsViewProps {
   settings: SystemSettings;
@@ -120,26 +119,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onRefreshD
           </div>
         </div>
 
-        {/* Supabase Integration Connection Info */}
+        {/* Server Connection Info */}
         <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-2 text-xs">
           <h4 className="font-bold text-slate-200 flex items-center gap-2">
-            {isSupabaseConfigured ? (
-              <span className="text-emerald-400 flex items-center gap-1">
-                <CloudCheck className="w-4 h-4" /> ربط Supabase نشط ومفعل 🟢
-              </span>
-            ) : (
-              <span className="text-slate-400 flex items-center gap-1">
-                <CloudOff className="w-4 h-4" /> الوضع المحلي (Offline Ready - LocalStorage)
-              </span>
-            )}
+            <span className="text-emerald-400 flex items-center gap-1">
+              <CloudCheck className="w-4 h-4" /> خادم DigitalOcean وتواصل Socket.io اللحظي مباشر 🟢
+            </span>
           </h4>
           <p className="text-slate-400 leading-relaxed">
-            لربط هذا التطبيق بسحابة Supabase ومزامنة البيانات عبر أجهزة متعددة ورفع المشروع على Vercel، أضف متغيرات البيئة التالية في ملف <code className="text-cyan-300 font-mono">.env.local</code> أو في لوحة التحكم بـ Vercel:
+            يعمل هذا النظام مباشرة على خادم <code className="text-cyan-300 font-mono">DigitalOcean (161.35.12.161)</code> بنظام الـ WebSockets اللحظية دون الحاجة لأي خدمات سحابية خارجية.
           </p>
-          <pre className="bg-slate-900 border border-slate-800 p-3 rounded-lg text-cyan-400 font-mono text-[11px] overflow-x-auto">
-            NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url{'\n'}
-            NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-          </pre>
         </div>
 
         {/* Save Button */}
