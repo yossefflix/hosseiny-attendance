@@ -34,7 +34,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenEditModal,
 }) => {
   const todayStr = getTodayDateString();
-  const activeEmployees = employees.filter((e) => e.status === 'active');
+  
+  // Deduplicate active employees by ID
+  const uniqueEmployeeMap = new Map<string, Employee>();
+  employees.filter((e) => e.status === 'active').forEach((e) => {
+    uniqueEmployeeMap.set(e.id, e);
+  });
+  const activeEmployees = Array.from(uniqueEmployeeMap.values());
 
   const [searchQuery, setSearchQuery] = useState('');
   const [duplicateWarning, setDuplicateWarning] = useState<{
@@ -44,11 +50,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     record?: AttendanceRecord;
   }>({ show: false, employeeName: '', existingTime: '' });
 
-  // Map today's attendance by employee_id
+  // Map today's attendance by employee_id robustly
   const todayRecordsMap = new Map<string, AttendanceRecord>();
   attendanceRecords.forEach((r) => {
     if (r.date === todayStr) {
       todayRecordsMap.set(r.employee_id, r);
+      if (r.employee_id) {
+        todayRecordsMap.set(r.employee_id.trim().toLowerCase(), r);
+      }
     }
   });
 
