@@ -3,11 +3,11 @@ const { Client } = require('ssh2');
 const conn = new Client();
 
 conn.on('ready', () => {
-  conn.exec('ps aux | grep npm', (err, stream) => {
+  conn.exec('ps aux | grep node', (err, stream) => {
     let stdout = '';
     stream.on('data', (d) => (stdout += d.toString()));
     stream.on('close', () => {
-      console.log('Running npm processes on server:\n', stdout);
+      console.log('Running processes on server:\n', stdout);
       conn.end();
     });
   });

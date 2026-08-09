@@ -304,8 +304,8 @@ app.prepare().then(() => {
     res.json({ success: true });
   });
 
-  // Next.js Handler for Frontend Pages
-  expressApp.all('*', (req, res) => {
+  // Next.js Handler for Frontend Pages (Express 5 compatible)
+  expressApp.use((req, res) => {
     return handle(req, res);
   });
 
