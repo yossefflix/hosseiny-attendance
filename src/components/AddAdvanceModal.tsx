@@ -93,9 +93,9 @@ export default function AddAdvanceModal({ employee, isOpen, onClose, onSuccess }
             <div className="relative">
               <input
                 type="number"
-                step="10"
+                step="any"
                 min="1"
-                placeholder="أدخل المبلغ، مثال: 500"
+                placeholder="أدخل المبلغ، مثال: 1000"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
