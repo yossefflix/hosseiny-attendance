@@ -44,8 +44,21 @@ export interface AuditLog {
   changed_at: string;
 }
 
+export interface AdvanceRecord {
+  id: string;
+  employee_id: string;
+  employee_name?: string;
+  amount: number; // المبلغ المستلف
+  date: string;   // تاريخ السلفة (YYYY-MM-DD)
+  time?: string;   // وقت السلفة (HH:mm)
+  notes?: string;  // ملاحظات
+  created_at?: string;
+}
+
 export interface SystemSettings {
   work_start_time: string; // e.g. "09:00"
   late_start_time: string; // e.g. "10:00"
   severe_late_time: string; // e.g. "11:00"
+  last_purge_date?: string; // تاريخ آخر تصفية للبيانات
 }
+

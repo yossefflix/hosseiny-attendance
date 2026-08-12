@@ -1,22 +1,26 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Employee, AttendanceRecord } from '@/types';
-import { UserPlus, Search, Edit, Trash2, Power, History, Phone, Briefcase } from 'lucide-react';
+import { Employee, AttendanceRecord, AdvanceRecord } from '@/types';
+import { UserPlus, Search, Edit, Trash2, Power, History, Phone, Briefcase, DollarSign } from 'lucide-react';
 import { AttendanceStore } from '@/lib/store';
 
 interface EmployeesViewProps {
   employees: Employee[];
   attendanceRecords: AttendanceRecord[];
+  advances?: AdvanceRecord[];
   onRefreshData: () => void;
   onSelectEmployeeProfile: (employee: Employee) => void;
+  onOpenAddAdvanceModal?: (employee: Employee) => void;
 }
 
 export const EmployeesView: React.FC<EmployeesViewProps> = ({
   employees,
   attendanceRecords,
+  advances = [],
   onRefreshData,
   onSelectEmployeeProfile,
+  onOpenAddAdvanceModal,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -148,28 +152,53 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
               </div>
 
               {/* Body */}
-              <div className="py-4 space-y-2 text-xs">
-                <div className="flex items-center justify-between text-slate-300">
-                  <span className="text-slate-400 flex items-center gap-1">
-                    <Phone className="w-3.5 h-3.5 text-slate-500" /> رقم الهاتف:
-                  </span>
-                  <span className="font-mono font-semibold">{emp.phone || '-'}</span>
-                </div>
-                <div className="flex items-center justify-between text-slate-300">
-                  <span className="text-slate-400">سجلات الحضور المسجلة:</span>
-                  <span className="font-mono font-semibold text-cyan-300">{empRecords.length} سجل</span>
-                </div>
-              </div>
+              {(() => {
+                const empAdvances = advances.filter((a) => a.employee_id === emp.id);
+                const totalAdvAmount = empAdvances.reduce((sum, a) => sum + (a.amount || 0), 0);
 
-              {/* Action Buttons */}
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
-                <button
-                  onClick={() => onSelectEmployeeProfile(emp)}
-                  className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-800 text-cyan-300 hover:bg-slate-700 transition-colors"
-                >
-                  <History className="w-3.5 h-3.5" />
-                  <span>مشاهدة السجل</span>
-                </button>
+                return (
+                  <>
+                    <div className="py-4 space-y-2 text-xs">
+                      <div className="flex items-center justify-between text-slate-300">
+                        <span className="text-slate-400 flex items-center gap-1">
+                          <Phone className="w-3.5 h-3.5 text-slate-500" /> رقم الهاتف:
+                        </span>
+                        <span className="font-mono font-semibold">{emp.phone || '-'}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-300">
+                        <span className="text-slate-400">سجلات الحضور المسجلة:</span>
+                        <span className="font-mono font-semibold text-cyan-300">{empRecords.length} سجل</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-300 pt-1 border-t border-slate-800/60">
+                        <span className="text-slate-400 font-medium flex items-center gap-1">
+                          <DollarSign className="w-3.5 h-3.5 text-amber-400" /> إجمالي السلف المالية:
+                        </span>
+                        <span className="font-mono font-bold text-amber-400 text-sm">
+                          {totalAdvAmount.toLocaleString('ar-EG')} ج.م
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => onSelectEmployeeProfile(emp)}
+                          className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-slate-800 text-cyan-300 hover:bg-slate-700 transition-colors"
+                        >
+                          <History className="w-3.5 h-3.5" />
+                          <span>السجل</span>
+                        </button>
+                        {onOpenAddAdvanceModal && (
+                          <button
+                            onClick={() => onOpenAddAdvanceModal(emp)}
+                            className="flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 transition-all"
+                          >
+                            <span>💵</span>
+                            <span>+ سلفة</span>
+                          </button>
+                        )}
+                      </div>
 
                 <div className="flex items-center gap-1">
                   <button
@@ -197,9 +226,12 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                   </button>
                 </div>
               </div>
-            </div>
+            </>
           );
-        })}
+        })()}
+      </div>
+    );
+  })}
       </div>
 
       {/* Add / Edit Employee Modal */}

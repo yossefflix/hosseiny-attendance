@@ -18,6 +18,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onRefreshD
   });
 
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [purging, setPurging] = useState(false);
+
+  const lastPurgeTime = settings.last_purge_date ? new Date(settings.last_purge_date).getTime() : Date.now();
+  const daysPassed = Math.floor((Date.now() - lastPurgeTime) / (1000 * 60 * 60 * 24));
+  const daysRemaining = Math.max(0, 90 - daysPassed);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +30,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onRefreshD
     await onRefreshData();
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
+  };
+
+  const handlePurgeThreeMonths = async () => {
+    if (!window.confirm('⚠️ هل أنت تأكد من رغبتك في مسح بيانات الحضور والتأخيرات والسلف السابقة والبدء من جديد لدورة الـ 3 أشهر القادمة؟\nملاحظة: سيتم الحفاظ على بيانات وأسماء الموظفين أساسياً.')) {
+      return;
+    }
+    setPurging(true);
+    try {
+      await AttendanceStore.purgeThreeMonthData();
+      await onRefreshData();
+      alert('✓ تم مسح وتصفية بيانات الـ 3 أشهر وبدء دورة جديدة بنجاح!');
+    } catch (err) {
+      console.error('Error purging data:', err);
+      alert('حدث خطأ أثناء تصفية البيانات، يرجى المحاولة مرة أخرى');
+    } finally {
+      setPurging(false);
+    }
   };
 
   return (
@@ -116,6 +138,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onRefreshD
             <div className="bg-rose-950/30 border border-rose-900/50 p-2 rounded-lg text-rose-300">
               🔴 تأخير شديد: من {formData.severe_late_time} فما بعده
             </div>
+          </div>
+        </div>
+
+        {/* 3-Month Automated & Manual Data Purge Section */}
+        <div className="bg-amber-950/20 border border-amber-500/30 p-5 rounded-2xl space-y-3 text-xs">
+          <div className="flex items-center justify-between gap-3">
+            <h4 className="font-black text-amber-300 text-sm flex items-center gap-2">
+              <span>🧹 إدارة دورة البيانات (تصفية كل 3 أشهر / 90 يوماً)</span>
+            </h4>
+            <span className="bg-amber-500/20 text-amber-300 font-mono font-bold px-3 py-1 rounded-full border border-amber-500/30">
+              متبقي في الدورة: {daysRemaining} يوم
+            </span>
+          </div>
+
+          <p className="text-slate-300 leading-relaxed">
+            يقوم النظام تلقائياً وبشكل دوري بمسح وتصفية بيانات الحضور والتأخيرات والسلف القديمة التي تجاوزت 90 يوماً (3 أشهر) للحفاظ على السرعة والذاكرة، مع الاحتفاظ ببيانات وأسماء الموظفين الأساسية.
+          </p>
+
+          <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-t border-amber-900/40">
+            <span className="text-slate-400 font-mono">
+              تاريخ آخر تصفية: {settings.last_purge_date ? new Date(settings.last_purge_date).toLocaleDateString('ar-EG') : 'الدورة الحالية جارية'}
+            </span>
+
+            <button
+              type="button"
+              onClick={handlePurgeThreeMonths}
+              disabled={purging}
+              className="bg-red-600 hover:bg-red-500 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-lg shadow-red-950/40 transition flex items-center gap-2 border border-red-400/30 disabled:opacity-50"
+            >
+              {purging ? 'جاري المسح والتصفية...' : '🗑️ مسح وتصفية بيانات 3 الشهور الآن (بدء دورة جديدة)'}
+            </button>
           </div>
         </div>
 

@@ -1,9 +1,10 @@
-import { Employee, AttendanceRecord, AuditLog, SystemSettings, AttendanceStatus } from '@/types';
+import { Employee, AttendanceRecord, AuditLog, SystemSettings, AttendanceStatus, AdvanceRecord } from '@/types';
 
 const STORAGE_KEYS = {
   EMPLOYEES: 'hosseiny_employees_v7',
   ATTENDANCE: 'hosseiny_attendance_v7',
   AUDIT_LOGS: 'hosseiny_audit_logs_v7',
+  ADVANCES: 'hosseiny_advances_v7',
   SETTINGS: 'hosseiny_settings_v7',
 };
 
@@ -127,6 +128,17 @@ export class AttendanceStore {
     }
   }
 
+  static getAdvances(): AdvanceRecord[] {
+    if (typeof window === 'undefined') return [];
+    const data = localStorage.getItem(STORAGE_KEYS.ADVANCES);
+    if (!data) return [];
+    try {
+      return JSON.parse(data);
+    } catch {
+      return [];
+    }
+  }
+
   static getSettings(): SystemSettings {
     if (typeof window === 'undefined') return DEFAULT_SETTINGS;
     const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
@@ -203,6 +215,7 @@ export class AttendanceStore {
             work_start_time: data.work_start_time ? String(data.work_start_time).slice(0, 5) : '09:00',
             late_start_time: data.late_start_time ? String(data.late_start_time).slice(0, 5) : '10:00',
             severe_late_time: data.severe_late_time ? String(data.severe_late_time).slice(0, 5) : '11:00',
+            last_purge_date: data.last_purge_date,
           };
           localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(fetched));
           return fetched;
@@ -212,6 +225,100 @@ export class AttendanceStore {
       console.error('Fetch settings error:', err);
     }
     return this.getSettings();
+  }
+
+  static async fetchAdvancesAsync(): Promise<AdvanceRecord[]> {
+    try {
+      const res = await fetch('/api/advances');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          localStorage.setItem(STORAGE_KEYS.ADVANCES, JSON.stringify(data));
+          return data as AdvanceRecord[];
+        }
+      }
+    } catch (err) {
+      console.error('Fetch advances error:', err);
+    }
+    return this.getAdvances();
+  }
+
+  static async addAdvance(employeeId: string, amount: number, notes?: string): Promise<AdvanceRecord> {
+    const advances = this.getAdvances();
+    const now = new Date();
+    const dateStr = getTodayDateString();
+    const timeStr = getCurrentTimeString();
+
+    const employees = this.getEmployees();
+    const emp = employees.find((e) => e.id === employeeId);
+
+    const newAdvance: AdvanceRecord = {
+      id: `adv-${Date.now()}`,
+      employee_id: employeeId,
+      employee_name: emp ? emp.name : 'موظف',
+      amount,
+      date: dateStr,
+      time: timeStr,
+      notes: notes || '',
+      created_at: now.toISOString(),
+    };
+
+    advances.push(newAdvance);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.ADVANCES, JSON.stringify(advances));
+    }
+
+    try {
+      const res = await fetch('/api/advances', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employee_id: employeeId,
+          amount,
+          date: dateStr,
+          time: timeStr,
+          notes,
+        }),
+      });
+      if (res.ok) {
+        const cloudAdv = await res.json();
+        return cloudAdv;
+      }
+    } catch (err) {
+      console.error('Add advance error:', err);
+    }
+
+    return newAdvance;
+  }
+
+  static async deleteAdvance(id: string): Promise<void> {
+    let advances = this.getAdvances();
+    advances = advances.filter((a) => a.id !== id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.ADVANCES, JSON.stringify(advances));
+    }
+    try {
+      await fetch(`/api/advances/${id}`, { method: 'DELETE' });
+    } catch (err) {
+      console.error('Delete advance error:', err);
+    }
+  }
+
+  static async purgeThreeMonthData(): Promise<boolean> {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEYS.ATTENDANCE);
+      localStorage.removeItem(STORAGE_KEYS.ADVANCES);
+      localStorage.removeItem(STORAGE_KEYS.AUDIT_LOGS);
+    }
+    try {
+      const res = await fetch('/api/purge-3months', { method: 'POST' });
+      if (res.ok) {
+        return true;
+      }
+    } catch (err) {
+      console.error('Purge 3-month data error:', err);
+    }
+    return true;
   }
 
   // --- MUTATIONS VIA SERVER API ---

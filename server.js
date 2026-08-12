@@ -41,16 +41,56 @@ const INITIAL_EMPLOYEES = [
   { id: 'emp-24', name: 'لارا هيثم', phone: '', job_title: 'إداري', status: 'active', created_at: new Date().toISOString() },
 ];
 
+function autoPurgeOldData(data) {
+  if (!data.advances) data.advances = [];
+  if (!data.attendance) data.attendance = [];
+  if (!data.audit_logs) data.audit_logs = [];
+
+  const NinetyDaysMs = 90 * 24 * 60 * 60 * 1000;
+  const cutoffDate = new Date(Date.now() - NinetyDaysMs);
+
+  const initialAttCount = data.attendance.length;
+  const initialAdvCount = data.advances.length;
+
+  data.attendance = data.attendance.filter((rec) => {
+    if (!rec.date) return true;
+    const recDate = new Date(rec.date);
+    return recDate >= cutoffDate;
+  });
+
+  data.advances = data.advances.filter((rec) => {
+    if (!rec.date) return true;
+    const recDate = new Date(rec.date);
+    return recDate >= cutoffDate;
+  });
+
+  data.audit_logs = data.audit_logs.filter((log) => {
+    if (!log.changed_at) return true;
+    const logDate = new Date(log.changed_at);
+    return logDate >= cutoffDate;
+  });
+
+  if (initialAttCount !== data.attendance.length || initialAdvCount !== data.advances.length) {
+    if (!data.settings) data.settings = {};
+    data.settings.last_purge_date = new Date().toISOString();
+    console.log('🧹 Purged attendance and advances records older than 90 days (3 months).');
+  }
+
+  return data;
+}
+
 function loadDb() {
   if (!fs.existsSync(dbFilePath)) {
     const initialDb = {
       employees: INITIAL_EMPLOYEES,
       attendance: [],
       audit_logs: [],
+      advances: [],
       settings: {
         work_start_time: '09:00',
         late_start_time: '10:00',
         severe_late_time: '11:00',
+        last_purge_date: new Date().toISOString(),
       },
     };
     fs.writeFileSync(dbFilePath, JSON.stringify(initialDb, null, 2), 'utf8');
@@ -58,17 +98,22 @@ function loadDb() {
   }
   try {
     const content = fs.readFileSync(dbFilePath, 'utf8');
-    const data = JSON.parse(content);
+    let data = JSON.parse(content);
     if (!data.employees || data.employees.length === 0) {
       data.employees = INITIAL_EMPLOYEES;
+    }
+    if (!data.advances) {
+      data.advances = [];
     }
     if (!data.settings) {
       data.settings = {
         work_start_time: '09:00',
         late_start_time: '10:00',
         severe_late_time: '11:00',
+        last_purge_date: new Date().toISOString(),
       };
     }
+    data = autoPurgeOldData(data);
     return data;
   } catch (err) {
     console.error('Error reading database file, resetting:', err);
@@ -76,10 +121,12 @@ function loadDb() {
       employees: INITIAL_EMPLOYEES,
       attendance: [],
       audit_logs: [],
+      advances: [],
       settings: {
         work_start_time: '09:00',
         late_start_time: '10:00',
         severe_late_time: '11:00',
+        last_purge_date: new Date().toISOString(),
       },
     };
     fs.writeFileSync(dbFilePath, JSON.stringify(initialDb, null, 2), 'utf8');
@@ -294,6 +341,7 @@ app.prepare().then(() => {
     const db = loadDb();
     const { work_start_time, late_start_time, severe_late_time } = req.body;
     db.settings = {
+      ...db.settings,
       work_start_time: work_start_time || '09:00',
       late_start_time: late_start_time || '10:00',
       severe_late_time: severe_late_time || '11:00',
@@ -302,6 +350,65 @@ app.prepare().then(() => {
     saveDb(db);
     broadcastUpdate();
     res.json({ success: true });
+  });
+
+  // 5. ADVANCES (السلف المالية)
+  expressApp.get('/api/advances', (req, res) => {
+    const db = loadDb();
+    res.json(db.advances || []);
+  });
+
+  expressApp.post('/api/advances', (req, res) => {
+    const db = loadDb();
+    const { employee_id, amount, date, time, notes } = req.body;
+
+    const emp = db.employees.find((e) => e.id === employee_id);
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const newAdvance = {
+      id: `adv-${Date.now()}`,
+      employee_id,
+      employee_name: emp ? emp.name : 'موظف',
+      amount: parseFloat(amount) || 0,
+      date: date || todayStr,
+      time: time || timeStr,
+      notes: notes || '',
+      created_at: now.toISOString(),
+    };
+
+    if (!db.advances) db.advances = [];
+    db.advances.push(newAdvance);
+
+    saveDb(db);
+    broadcastUpdate();
+    res.json(newAdvance);
+  });
+
+  expressApp.delete('/api/advances/:id', (req, res) => {
+    const db = loadDb();
+    const { id } = req.params;
+    if (db.advances) {
+      db.advances = db.advances.filter((a) => a.id !== id);
+    }
+    saveDb(db);
+    broadcastUpdate();
+    res.json({ success: true });
+  });
+
+  // 6. THREE MONTH DATA PURGE (تنظيف بيانات 3 شهور)
+  expressApp.post('/api/purge-3months', (req, res) => {
+    const db = loadDb();
+    db.attendance = [];
+    db.advances = [];
+    db.audit_logs = [];
+    if (!db.settings) db.settings = {};
+    db.settings.last_purge_date = new Date().toISOString();
+
+    saveDb(db);
+    broadcastUpdate();
+    res.json({ success: true, message: 'تم تصفية وبدء دورة 3 شهور جديدة بنجاح' });
   });
 
   // Next.js Handler for Frontend Pages (Express 5 compatible)

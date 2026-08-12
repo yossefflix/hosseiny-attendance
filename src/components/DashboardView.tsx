@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Employee, AttendanceRecord, SystemSettings } from '@/types';
+import { Employee, AttendanceRecord, SystemSettings, AdvanceRecord } from '@/types';
 import { 
   Users, 
   CheckCircle2, 
@@ -14,24 +14,29 @@ import {
   UserCheck,
   AlertTriangle,
   UserX,
-  Briefcase
+  Briefcase,
+  DollarSign
 } from 'lucide-react';
 import { AttendanceStore, formatArabicTime, getTodayDateString, getCurrentTimeString } from '@/lib/store';
 
 interface DashboardViewProps {
   employees: Employee[];
   attendanceRecords: AttendanceRecord[];
+  advances?: AdvanceRecord[];
   settings: SystemSettings;
   onRefreshData: () => void;
   onOpenEditModal: (record: AttendanceRecord) => void;
+  onOpenAddAdvanceModal?: (employee: Employee) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   employees,
   attendanceRecords,
+  advances = [],
   settings,
   onRefreshData,
   onOpenEditModal,
+  onOpenAddAdvanceModal,
 }) => {
   const todayStr = getTodayDateString();
   
@@ -220,6 +225,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               filteredEmployees.map((emp) => {
                 const rec = todayRecordsMap.get(emp.id);
                 const isRecorded = Boolean(rec);
+                const empAdvances = advances.filter((a) => a.employee_id === emp.id);
+                const empAdvTotal = empAdvances.reduce((sum, a) => sum + (a.amount || 0), 0);
 
                 return (
                   <div
@@ -232,7 +239,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         {emp.name.slice(0, 2)}
                       </div>
                       <div className="truncate">
-                        <h4 className="font-semibold text-slate-100 text-sm truncate">{emp.name}</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-slate-100 text-sm truncate">{emp.name}</h4>
+                          {empAdvTotal > 0 && (
+                            <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold font-mono px-2 py-0.5 rounded-full">
+                              💵 سلف: {empAdvTotal.toLocaleString('ar-EG')} ج.م
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
                           <span className="truncate">{emp.job_title}</span>
                           <span className="w-1 h-1 rounded-full bg-slate-600"></span>
@@ -242,7 +256,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </div>
 
                     {/* Status & Action */}
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Add Advance Button */}
+                      {onOpenAddAdvanceModal && (
+                        <button
+                          onClick={() => onOpenAddAdvanceModal(emp)}
+                          title="إضافة سلفة للموظف"
+                          className="px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold transition flex items-center gap-1"
+                        >
+                          <span>💵</span>
+                          <span className="hidden sm:inline">+ سلفة</span>
+                        </button>
+                      )}
+
                       {isRecorded && rec ? (
                         <>
                           {/* Time & Badge */}

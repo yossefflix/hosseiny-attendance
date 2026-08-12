@@ -150,3 +150,41 @@ export function exportMonthlyAttendanceExcel(
 
   XLSX.writeFile(workbook, `monthly_attendance_${yearMonth}.xlsx`);
 }
+
+// Generate Advances Excel Report
+export function exportAdvancesToExcel(advances: any[], employees: Employee[]) {
+  const empMap = new Map<string, Employee>();
+  employees.forEach((e) => empMap.set(e.id, e));
+
+  const rows = advances.map((adv, idx) => {
+    const emp = empMap.get(adv.employee_id);
+    return {
+      '#': idx + 1,
+      'اسم الموظف': adv.employee_name || emp?.name || 'موظف',
+      'الوظيفة': emp?.job_title || '-',
+      'مبلغ السلفة (ج.م)': adv.amount || 0,
+      'تاريخ السلفة': adv.date || '-',
+      'وقت التسجيل': adv.time ? formatArabicTime(adv.time) : '-',
+      'الملاحظات': adv.notes || '-',
+    };
+  });
+
+  const totalAmount = advances.reduce((sum, a) => sum + (a.amount || 0), 0);
+
+  const summaryRows = [
+    { 'البيان': 'إجمالي عدد السلف المسجلة', 'القيمة': advances.length },
+    { 'البيان': 'إجمالي مبالغ السلف (ج.م)', 'القيمة': totalAmount },
+    { 'البيان': 'تاريخ استخراج التقرير', 'القيمة': new Date().toLocaleDateString('ar-EG') },
+  ];
+
+  const workbook = XLSX.utils.book_new();
+
+  const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
+  XLSX.utils.book_append_sheet(workbook, summarySheet, 'ملخص السلف');
+
+  const mainSheet = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(workbook, mainSheet, 'سجل السلف التفصيلي');
+
+  XLSX.writeFile(workbook, `advances_report_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
