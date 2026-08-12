@@ -19,6 +19,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onRefreshD
 
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [purging, setPurging] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [purgePassword, setPurgePassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   const lastPurgeTime = settings.last_purge_date ? new Date(settings.last_purge_date).getTime() : Date.now();
   const daysPassed = Math.floor((Date.now() - lastPurgeTime) / (1000 * 60 * 60 * 24));
@@ -32,18 +35,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onRefreshD
     setTimeout(() => setSavedSuccess(false), 3000);
   };
 
-  const handlePurgeThreeMonths = async () => {
-    if (!window.confirm('⚠️ هل أنت تأكد من رغبتك في مسح بيانات الحضور والتأخيرات والسلف السابقة والبدء من جديد لدورة الـ 3 أشهر القادمة؟\nملاحظة: سيتم الحفاظ على بيانات وأسماء الموظفين أساسياً.')) {
+  const handleOpenPurgeModal = () => {
+    setPurgePassword('');
+    setPasswordError('');
+    setIsPasswordModalOpen(true);
+  };
+
+  const confirmPurgeWithPassword = async () => {
+    if (purgePassword !== 'Yossef123$') {
+      setPasswordError('كلمة السر غير صحيحة، تم رفض عملية التصفية!');
       return;
     }
+
     setPurging(true);
+    setPasswordError('');
+
     try {
       await AttendanceStore.purgeThreeMonthData();
       await onRefreshData();
-      alert('✓ تم مسح وتصفية بيانات الـ 3 أشهر وبدء دورة جديدة بنجاح!');
+      setIsPasswordModalOpen(false);
+      alert('✓ تم تأكيد كلمة السر بتمكّن، ومسح بيانات 3 الأشهر وبدء دورة جديدة بنجاح!');
     } catch (err) {
       console.error('Error purging data:', err);
-      alert('حدث خطأ أثناء تصفية البيانات، يرجى المحاولة مرة أخرى');
+      setPasswordError('حدث خطأ أثناء تصفية البيانات، يرجى المحاولة مرة أخرى');
     } finally {
       setPurging(false);
     }
@@ -163,7 +177,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onRefreshD
 
             <button
               type="button"
-              onClick={handlePurgeThreeMonths}
+              onClick={handleOpenPurgeModal}
               disabled={purging}
               className="bg-red-600 hover:bg-red-500 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-lg shadow-red-950/40 transition flex items-center gap-2 border border-red-400/30 disabled:opacity-50"
             >
@@ -200,6 +214,81 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onRefreshD
           </button>
         </div>
       </form>
+
+      {/* Password Confirmation Modal for Purging Data */}
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-slate-900 border border-red-500/30 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl p-6 space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <span>🔒</span> تأكيد تصفية بيانات الـ 3 أشهر
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsPasswordModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              تنبيه: سيتم مسح بيانات الحضور والتأخيرات والسلف السابقة لبدء دورة جديدة (مع الحفاظ على أسماء الموظفين).
+              <br />
+              <strong className="text-red-400 mt-1 block">يرجى إدخال كلمة السر للتأكيد الحتمي:</strong>
+            </p>
+
+            {passwordError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs font-bold">
+                ⚠️ {passwordError}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">كلمة السر المطلوبة:</label>
+              <input
+                type="password"
+                placeholder="أدخل كلمة السر للتأكيد..."
+                value={purgePassword}
+                onChange={(e) => setPurgePassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    confirmPurgeWithPassword();
+                  }
+                }}
+                autoFocus
+                className="w-full bg-slate-950 border border-slate-700 focus:border-red-500 rounded-xl p-3 text-white text-sm font-mono focus:outline-none transition"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={confirmPurgeWithPassword}
+                disabled={purging}
+                className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {purging ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    جاري التصفية...
+                  </>
+                ) : (
+                  'تأكيد ومسح البيانات الآن'
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsPasswordModalOpen(false)}
+                className="px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 rounded-xl text-xs transition"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
