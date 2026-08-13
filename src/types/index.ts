@@ -59,7 +59,8 @@ export interface DeductionRecord {
   id: string;
   employee_id: string;
   employee_name?: string;
-  amount: number; // مبلغ الخصم
+  amount?: number; // مبلغ الخصم المالي (اختياري)
+  days?: number;   // عدد أيام الخصم (اختياري)
   reason?: string; // سبب الخصم
   date: string;   // تاريخ الخصم (YYYY-MM-DD)
   time?: string;   // وقت الخصم (HH:mm)

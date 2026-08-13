@@ -334,7 +334,8 @@ export class AttendanceStore {
 
   static async addDeduction(
     employeeId: string,
-    amount: number,
+    amount?: number,
+    days?: number,
     reason?: string
   ): Promise<DeductionRecord> {
     const deductions = this.getDeductions();
@@ -345,11 +346,15 @@ export class AttendanceStore {
     const dateStr = getTodayDateString();
     const timeStr = getCurrentTimeString();
 
+    const numAmount = amount || 0;
+    const numDays = days || 0;
+
     const newDeduction: DeductionRecord = {
       id: `ded-${Date.now()}`,
       employee_id: employeeId,
       employee_name: emp ? emp.name : 'موظف',
-      amount,
+      amount: numAmount,
+      days: numDays,
       date: dateStr,
       time: timeStr,
       reason: reason || '',
@@ -367,7 +372,8 @@ export class AttendanceStore {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           employee_id: employeeId,
-          amount,
+          amount: numAmount,
+          days: numDays,
           date: dateStr,
           time: timeStr,
           reason,

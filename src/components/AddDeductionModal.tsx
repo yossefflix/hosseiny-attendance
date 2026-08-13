@@ -13,6 +13,7 @@ interface AddDeductionModalProps {
 
 export default function AddDeductionModal({ employee, isOpen, onClose, onSuccess }: AddDeductionModalProps) {
   const [amount, setAmount] = useState<string>('');
+  const [days, setDays] = useState<string>('');
   const [reason, setReason] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
@@ -25,9 +26,11 @@ export default function AddDeductionModal({ employee, isOpen, onClose, onSuccess
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const numAmount = parseFloat(amount);
-    if (!numAmount || numAmount <= 0) {
-      setError('يرجى إدخال مبلغ خصم صحيح أكبر من الصفر');
+    const numAmount = parseFloat(amount) || 0;
+    const numDays = parseFloat(days) || 0;
+
+    if (numAmount <= 0 && numDays <= 0) {
+      setError('يرجى إدخال مبلغ الخصم المالي أو عدد أيام الخصم (قيمة واحدة على الأقل أكبر من الصفر)');
       return;
     }
 
@@ -35,8 +38,9 @@ export default function AddDeductionModal({ employee, isOpen, onClose, onSuccess
     setError('');
 
     try {
-      await AttendanceStore.addDeduction(employee.id, numAmount, reason);
+      await AttendanceStore.addDeduction(employee.id, numAmount, numDays, reason);
       setAmount('');
+      setDays('');
       setReason('');
       onSuccess();
       onClose();
@@ -55,7 +59,7 @@ export default function AddDeductionModal({ employee, isOpen, onClose, onSuccess
         <div className="bg-gradient-to-r from-rose-600/20 via-red-600/20 to-slate-900 border-b border-rose-500/20 p-6 flex justify-between items-center">
           <div>
             <h3 className="text-xl font-bold text-white flex items-center gap-2">
-              <span className="text-2xl">🔻</span> إضافة خصم مالي
+              <span className="text-2xl">🔻</span> إضافة خصم (مالي / أيام)
             </h3>
             <p className="text-sm text-slate-400 mt-1">
               للموظف: <span className="text-rose-400 font-bold">{employee.name}</span>
@@ -70,7 +74,7 @@ export default function AddDeductionModal({ employee, isOpen, onClose, onSuccess
         </div>
 
         {/* Body Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
             <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
               ⚠️ {error}
@@ -85,32 +89,54 @@ export default function AddDeductionModal({ employee, isOpen, onClose, onSuccess
             </span>
           </div>
 
-          {/* Amount Field */}
+          {/* Amount Field (Optional) */}
           <div>
-            <label className="block text-sm font-medium text-slate-200 mb-2">
-              مبلغ الخصم (بالجنيه المصري) <span className="text-red-400">*</span>
+            <label className="block text-sm font-medium text-slate-200 mb-1.5 flex items-center justify-between">
+              <span>مبلغ الخصم المالي (اختياري)</span>
+              <span className="text-xs text-slate-400 font-normal">بالجنيه المصري</span>
             </label>
             <div className="relative">
               <input
                 type="number"
                 step="any"
-                min="1"
-                placeholder="أدخل المبلغ، مثال: 200"
+                min="0"
+                placeholder="أدخل المبلغ المالي، مثال: 200"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                required
                 autoFocus
-                className="w-full bg-slate-950 border border-slate-700 focus:border-rose-500 rounded-xl py-3 pr-4 pl-12 text-white font-bold text-lg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition"
+                className="w-full bg-slate-950 border border-slate-700 focus:border-rose-500 rounded-xl py-2.5 pr-4 pl-12 text-white font-bold text-base placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition"
               />
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">
                 ج.م
+              </span>
+            </div>
+          </div>
+
+          {/* Days Field (Optional) */}
+          <div>
+            <label className="block text-sm font-medium text-slate-200 mb-1.5 flex items-center justify-between">
+              <span>عدد أيام الخصم (اختياري)</span>
+              <span className="text-xs text-slate-400 font-normal">مثال: 1 أو 0.5 يوم</span>
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                step="any"
+                min="0"
+                placeholder="أدخل عدد الأيام، مثال: 1 أو 0.5"
+                value={days}
+                onChange={(e) => setDays(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 focus:border-rose-500 rounded-xl py-2.5 pr-4 pl-12 text-white font-bold text-base placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition"
+              />
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">
+                يوم
               </span>
             </div>
           </div>
 
           {/* Reason Field */}
           <div>
-            <label className="block text-sm font-medium text-slate-200 mb-2">
+            <label className="block text-sm font-medium text-slate-200 mb-1.5">
               سبب الخصم أو الملاحظات (اختياري)
             </label>
             <textarea

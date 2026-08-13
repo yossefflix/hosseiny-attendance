@@ -417,7 +417,7 @@ app.prepare().then(() => {
 
   expressApp.post('/api/deductions', (req, res) => {
     const db = loadDb();
-    const { employee_id, amount, reason, date, time } = req.body;
+    const { employee_id, amount, days, reason, date, time } = req.body;
 
     const emp = db.employees.find((e) => e.id === employee_id);
     const now = new Date();
@@ -429,6 +429,7 @@ app.prepare().then(() => {
       employee_id,
       employee_name: emp ? emp.name : 'موظف',
       amount: parseFloat(amount) || 0,
+      days: parseFloat(days) || 0,
       reason: reason || '',
       date: date || todayStr,
       time: time || timeStr,

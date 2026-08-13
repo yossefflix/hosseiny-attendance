@@ -19,6 +19,7 @@ export default function DeductionsView({ employees, deductions, onRefresh, onOpe
 
   // Calculate totals
   const totalAmount = deductions.reduce((sum, d) => sum + (d.amount || 0), 0);
+  const totalDays = deductions.reduce((sum, d) => sum + (d.days || 0), 0);
   const uniqueDeductedCount = new Set(deductions.map((d) => d.employee_id)).size;
 
   // Filter deductions
@@ -30,7 +31,7 @@ export default function DeductionsView({ employees, deductions, onRefresh, onOpe
   });
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('هل أنت تأكد من رغبتك في حذف هذا الخصم المالي؟')) return;
+    if (!window.confirm('هل أنت تأكد من رغبتك في حذف هذا الخصم؟')) return;
     setDeletingId(id);
     try {
       await AttendanceStore.deleteDeduction(id);
@@ -53,10 +54,10 @@ export default function DeductionsView({ employees, deductions, onRefresh, onOpe
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-black text-white flex items-center gap-3">
-              <span className="text-3xl">🔻</span> قسم الخصومات المالية للموظفين
+              <span className="text-3xl">🔻</span> قسم الخصومات (مالية / أيام) للموظفين
             </h2>
             <p className="text-slate-400 text-sm mt-1">
-              إدارة وتسجيل وتتبع الخصومات الجزائية وتكلفة التلفيات لموظفي الشركة
+              إدارة وتتبع خصومات الموظفين بالجنيه أو بالأيام وتصدي الكشوفات لـ Excel
             </p>
           </div>
           <button
@@ -68,15 +69,27 @@ export default function DeductionsView({ employees, deductions, onRefresh, onOpe
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
           <div className="bg-slate-950/60 border border-rose-500/20 rounded-xl p-4 flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-2xl">
               🔻
             </div>
             <div>
-              <p className="text-xs text-slate-400 font-medium">إجمالي الخصومات المالية</p>
-              <p className="text-2xl font-black text-rose-400 font-mono mt-0.5">
-                {totalAmount.toLocaleString('ar-EG')} <span className="text-sm font-sans text-rose-300">ج.م</span>
+              <p className="text-xs text-slate-400 font-medium">إجمالي المبالغ المخصومة</p>
+              <p className="text-xl font-black text-rose-400 font-mono mt-0.5">
+                {totalAmount.toLocaleString('ar-EG')} <span className="text-xs font-sans text-rose-300">ج.م</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-slate-950/60 border border-orange-500/20 rounded-xl p-4 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-2xl">
+              📅
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 font-medium">إجمالي الأيام المخصومة</p>
+              <p className="text-xl font-black text-orange-400 font-mono mt-0.5">
+                {totalDays.toLocaleString('ar-EG')} <span className="text-xs font-sans text-orange-300">يوم</span>
               </p>
             </div>
           </div>
@@ -87,8 +100,8 @@ export default function DeductionsView({ employees, deductions, onRefresh, onOpe
             </div>
             <div>
               <p className="text-xs text-slate-400 font-medium">عدد الخصومات المسجلة</p>
-              <p className="text-2xl font-black text-amber-400 font-mono mt-0.5">
-                {deductions.length} <span className="text-sm font-sans text-amber-300">خصم</span>
+              <p className="text-xl font-black text-amber-400 font-mono mt-0.5">
+                {deductions.length} <span className="text-xs font-sans text-amber-300">خصم</span>
               </p>
             </div>
           </div>
@@ -98,9 +111,9 @@ export default function DeductionsView({ employees, deductions, onRefresh, onOpe
               👥
             </div>
             <div>
-              <p className="text-xs text-slate-400 font-medium">عدد الموظفين المخصوم لهم</p>
-              <p className="text-2xl font-black text-purple-400 font-mono mt-0.5">
-                {uniqueDeductedCount} <span className="text-sm font-sans text-purple-300">موظف</span>
+              <p className="text-xs text-slate-400 font-medium">الموظفين المخصوم لهم</p>
+              <p className="text-xl font-black text-purple-400 font-mono mt-0.5">
+                {uniqueDeductedCount} <span className="text-xs font-sans text-purple-300">موظف</span>
               </p>
             </div>
           </div>
@@ -146,7 +159,7 @@ export default function DeductionsView({ employees, deductions, onRefresh, onOpe
                 <th className="p-4">اسم الموظف</th>
                 <th className="p-4">تاريخ الخصم (تلقائي)</th>
                 <th className="p-4">وقت التسجيل</th>
-                <th className="p-4">مبلغ الخصم</th>
+                <th className="p-4">قيمة الخصم (مالي / أيام)</th>
                 <th className="p-4">سبب الخصم / ملاحظات</th>
                 <th className="p-4 text-center">إجراءات</th>
               </tr>
@@ -156,14 +169,16 @@ export default function DeductionsView({ employees, deductions, onRefresh, onOpe
                 <tr>
                   <td colSpan={7} className="p-12 text-center text-slate-500">
                     <div className="text-4xl mb-2">🛡️</div>
-                    <p className="font-medium text-base text-slate-400">لا توجد خصومات مالية مسجلة حالياً</p>
-                    <p className="text-xs text-slate-500 mt-1">يمكنك إضافة خصم مالي من لوحة الموظفين أو الحضور اليومي</p>
+                    <p className="font-medium text-base text-slate-400">لا توجد خصومات مسجلة حالياً</p>
+                    <p className="text-xs text-slate-500 mt-1">يمكنك إضافة خصم مالي أو أيام من لوحة الموظفين أو الحضور اليومي</p>
                   </td>
                 </tr>
               ) : (
                 filteredDeductions.map((ded, index) => {
                   const emp = employees.find((e) => e.id === ded.employee_id);
                   const empName = ded.employee_name || emp?.name || 'موظف';
+                  const hasAmount = Boolean(ded.amount && ded.amount > 0);
+                  const hasDays = Boolean(ded.days && ded.days > 0);
 
                   return (
                     <tr key={ded.id} className="hover:bg-slate-800/40 transition">
@@ -178,8 +193,22 @@ export default function DeductionsView({ employees, deductions, onRefresh, onOpe
                       <td className="p-4 font-mono text-rose-300/90 text-xs">
                         {formatArabicTime(ded.time)}
                       </td>
-                      <td className="p-4 font-bold text-rose-400 font-mono text-base">
-                        {(ded.amount || 0).toLocaleString('ar-EG')} <span className="text-xs font-sans text-rose-300">ج.م</span>
+                      <td className="p-4 font-bold font-mono text-base">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {hasAmount && (
+                            <span className="text-rose-400 bg-rose-950/40 border border-rose-800/40 px-2 py-0.5 rounded-lg text-sm">
+                              {(ded.amount || 0).toLocaleString('ar-EG')} ج.م
+                            </span>
+                          )}
+                          {hasDays && (
+                            <span className="text-orange-400 bg-orange-950/40 border border-orange-800/40 px-2 py-0.5 rounded-lg text-sm">
+                              {(ded.days || 0).toLocaleString('ar-EG')} يوم
+                            </span>
+                          )}
+                          {!hasAmount && !hasDays && (
+                            <span className="text-slate-500 text-xs">--</span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4 text-slate-400 text-xs max-w-xs truncate">
                         {ded.reason || <span className="text-slate-600">-- بدون سبب مدون --</span>}
@@ -204,9 +233,16 @@ export default function DeductionsView({ employees, deductions, onRefresh, onOpe
                   <td colSpan={4} className="p-4 text-left">
                     المجموع الكلي للخصومات المفلترة:
                   </td>
-                  <td className="p-4 font-mono text-rose-400 text-lg">
-                    {filteredDeductions.reduce((sum, d) => sum + (d.amount || 0), 0).toLocaleString('ar-EG')}{' '}
-                    <span className="text-xs font-sans text-rose-300">ج.م</span>
+                  <td className="p-4 font-mono text-base">
+                    <div className="flex items-center gap-3">
+                      <span className="text-rose-400">
+                        {filteredDeductions.reduce((sum, d) => sum + (d.amount || 0), 0).toLocaleString('ar-EG')} ج.م
+                      </span>
+                      <span className="text-slate-600">|</span>
+                      <span className="text-orange-400">
+                        {filteredDeductions.reduce((sum, d) => sum + (d.days || 0), 0).toLocaleString('ar-EG')} يوم
+                      </span>
+                    </div>
                   </td>
                   <td colSpan={2}></td>
                 </tr>

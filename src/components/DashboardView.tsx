@@ -234,6 +234,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
                 const empDeductions = deductions.filter((d) => d.employee_id === emp.id);
                 const empDedTotal = empDeductions.reduce((sum, d) => sum + (d.amount || 0), 0);
+                const empDedDaysTotal = empDeductions.reduce((sum, d) => sum + (d.days || 0), 0);
 
                 return (
                   <div
@@ -253,9 +254,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                               💵 سلف: {empAdvTotal.toLocaleString('ar-EG')} ج.م
                             </span>
                           )}
-                          {empDedTotal > 0 && (
-                            <span className="text-[10px] bg-rose-500/10 text-rose-400 border border-rose-500/30 font-bold font-mono px-2 py-0.5 rounded-full">
-                              🔻 خصومات: {empDedTotal.toLocaleString('ar-EG')} ج.م
+                          {(empDedTotal > 0 || empDedDaysTotal > 0) && (
+                            <span className="text-[10px] bg-rose-500/10 text-rose-400 border border-rose-500/30 font-bold font-mono px-2 py-0.5 rounded-full flex items-center gap-1">
+                              🔻 خصومات: {empDedTotal > 0 ? `${empDedTotal.toLocaleString('ar-EG')} ج.م ` : ''}{empDedDaysTotal > 0 ? `(${empDedDaysTotal.toLocaleString('ar-EG')} يوم)` : ''}
                             </span>
                           )}
                         </div>

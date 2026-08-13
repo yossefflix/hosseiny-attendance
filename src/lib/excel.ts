@@ -200,6 +200,7 @@ export function exportDeductionsToExcel(deductions: any[], employees: Employee[]
       'اسم الموظف': ded.employee_name || emp?.name || 'موظف',
       'الوظيفة': emp?.job_title || '-',
       'مبلغ الخصم (ج.م)': ded.amount || 0,
+      'عدد أيام الخصم': ded.days || 0,
       'سبب الخصم': ded.reason || '-',
       'تاريخ الخصم': ded.date || '-',
       'وقت التسجيل': ded.time ? formatArabicTime(ded.time) : '-',
@@ -207,10 +208,12 @@ export function exportDeductionsToExcel(deductions: any[], employees: Employee[]
   });
 
   const totalAmount = deductions.reduce((sum, d) => sum + (d.amount || 0), 0);
+  const totalDays = deductions.reduce((sum, d) => sum + (d.days || 0), 0);
 
   const summaryRows = [
     { 'البيان': 'إجمالي عدد الخصومات المسجلة', 'القيمة': deductions.length },
-    { 'البيan': 'إجمالي مبالغ الخصومات (ج.م)', 'القيمة': totalAmount },
+    { 'البيان': 'إجمالي مبالغ الخصومات (ج.م)', 'القيمة': totalAmount },
+    { 'البيان': 'إجمالي الأيام المخصومة', 'القيمة': totalDays },
     { 'البيان': 'تاريخ استخراج التقرير', 'القيمة': new Date().toLocaleDateString('ar-EG') },
   ];
 

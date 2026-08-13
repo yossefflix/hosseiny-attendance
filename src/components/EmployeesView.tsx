@@ -162,6 +162,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
 
                 const empDeductions = deductions.filter((d) => d.employee_id === emp.id);
                 const totalDedAmount = empDeductions.reduce((sum, d) => sum + (d.amount || 0), 0);
+                const totalDedDays = empDeductions.reduce((sum, d) => sum + (d.days || 0), 0);
 
                 return (
                   <>
@@ -189,7 +190,9 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                           <span>🔻</span> إجمالي الخصومات:
                         </span>
                         <span className="font-mono font-bold text-rose-400 text-sm">
-                          {totalDedAmount.toLocaleString('ar-EG')} ج.م
+                          {totalDedAmount > 0 ? `${totalDedAmount.toLocaleString('ar-EG')} ج.م ` : ''}
+                          {totalDedDays > 0 ? `(${totalDedDays.toLocaleString('ar-EG')} يوم)` : ''}
+                          {totalDedAmount === 0 && totalDedDays === 0 ? '0 ج.م' : ''}
                         </span>
                       </div>
                     </div>
