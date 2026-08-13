@@ -43,6 +43,7 @@ const INITIAL_EMPLOYEES = [
 
 function autoPurgeOldData(data) {
   if (!data.advances) data.advances = [];
+  if (!data.deductions) data.deductions = [];
   if (!data.attendance) data.attendance = [];
   if (!data.audit_logs) data.audit_logs = [];
 
@@ -51,6 +52,7 @@ function autoPurgeOldData(data) {
 
   const initialAttCount = data.attendance.length;
   const initialAdvCount = data.advances.length;
+  const initialDedCount = data.deductions.length;
 
   data.attendance = data.attendance.filter((rec) => {
     if (!rec.date) return true;
@@ -64,16 +66,22 @@ function autoPurgeOldData(data) {
     return recDate >= cutoffDate;
   });
 
+  data.deductions = data.deductions.filter((rec) => {
+    if (!rec.date) return true;
+    const recDate = new Date(rec.date);
+    return recDate >= cutoffDate;
+  });
+
   data.audit_logs = data.audit_logs.filter((log) => {
     if (!log.changed_at) return true;
     const logDate = new Date(log.changed_at);
     return logDate >= cutoffDate;
   });
 
-  if (initialAttCount !== data.attendance.length || initialAdvCount !== data.advances.length) {
+  if (initialAttCount !== data.attendance.length || initialAdvCount !== data.advances.length || initialDedCount !== data.deductions.length) {
     if (!data.settings) data.settings = {};
     data.settings.last_purge_date = new Date().toISOString();
-    console.log('🧹 Purged attendance and advances records older than 90 days (3 months).');
+    console.log('🧹 Purged attendance, advances, and deductions records older than 90 days (3 months).');
   }
 
   return data;
@@ -86,6 +94,7 @@ function loadDb() {
       attendance: [],
       audit_logs: [],
       advances: [],
+      deductions: [],
       settings: {
         work_start_time: '09:00',
         late_start_time: '10:00',
@@ -104,6 +113,9 @@ function loadDb() {
     }
     if (!data.advances) {
       data.advances = [];
+    }
+    if (!data.deductions) {
+      data.deductions = [];
     }
     if (!data.settings) {
       data.settings = {
@@ -397,11 +409,57 @@ app.prepare().then(() => {
     res.json({ success: true });
   });
 
-  // 6. THREE MONTH DATA PURGE (تنظيف بيانات 3 شهور)
+  // 6. DEDUCTIONS (الخصومات المالية)
+  expressApp.get('/api/deductions', (req, res) => {
+    const db = loadDb();
+    res.json(db.deductions || []);
+  });
+
+  expressApp.post('/api/deductions', (req, res) => {
+    const db = loadDb();
+    const { employee_id, amount, reason, date, time } = req.body;
+
+    const emp = db.employees.find((e) => e.id === employee_id);
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const newDeduction = {
+      id: `ded-${Date.now()}`,
+      employee_id,
+      employee_name: emp ? emp.name : 'موظف',
+      amount: parseFloat(amount) || 0,
+      reason: reason || '',
+      date: date || todayStr,
+      time: time || timeStr,
+      created_at: now.toISOString(),
+    };
+
+    if (!db.deductions) db.deductions = [];
+    db.deductions.push(newDeduction);
+
+    saveDb(db);
+    broadcastUpdate();
+    res.json(newDeduction);
+  });
+
+  expressApp.delete('/api/deductions/:id', (req, res) => {
+    const db = loadDb();
+    const { id } = req.params;
+    if (db.deductions) {
+      db.deductions = db.deductions.filter((d) => d.id !== id);
+    }
+    saveDb(db);
+    broadcastUpdate();
+    res.json({ success: true });
+  });
+
+  // 7. THREE MONTH DATA PURGE (تنظيف بيانات 3 شهور)
   expressApp.post('/api/purge-3months', (req, res) => {
     const db = loadDb();
     db.attendance = [];
     db.advances = [];
+    db.deductions = [];
     db.audit_logs = [];
     if (!db.settings) db.settings = {};
     db.settings.last_purge_date = new Date().toISOString();

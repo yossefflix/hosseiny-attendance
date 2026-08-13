@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Employee, AttendanceRecord, AdvanceRecord } from '@/types';
+import { Employee, AttendanceRecord, AdvanceRecord, DeductionRecord } from '@/types';
 import { UserPlus, Search, Edit, Trash2, Power, History, Phone, Briefcase, DollarSign } from 'lucide-react';
 import { AttendanceStore } from '@/lib/store';
 
@@ -9,18 +9,22 @@ interface EmployeesViewProps {
   employees: Employee[];
   attendanceRecords: AttendanceRecord[];
   advances?: AdvanceRecord[];
+  deductions?: DeductionRecord[];
   onRefreshData: () => void;
   onSelectEmployeeProfile: (employee: Employee) => void;
   onOpenAddAdvanceModal?: (employee: Employee) => void;
+  onOpenAddDeductionModal?: (employee: Employee) => void;
 }
 
 export const EmployeesView: React.FC<EmployeesViewProps> = ({
   employees,
   attendanceRecords,
   advances = [],
+  deductions = [],
   onRefreshData,
   onSelectEmployeeProfile,
   onOpenAddAdvanceModal,
+  onOpenAddDeductionModal,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -156,6 +160,9 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                 const empAdvances = advances.filter((a) => a.employee_id === emp.id);
                 const totalAdvAmount = empAdvances.reduce((sum, a) => sum + (a.amount || 0), 0);
 
+                const empDeductions = deductions.filter((d) => d.employee_id === emp.id);
+                const totalDedAmount = empDeductions.reduce((sum, d) => sum + (d.amount || 0), 0);
+
                 return (
                   <>
                     <div className="py-4 space-y-2 text-xs">
@@ -177,11 +184,19 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                           {totalAdvAmount.toLocaleString('ar-EG')} ج.م
                         </span>
                       </div>
+                      <div className="flex items-center justify-between text-slate-300 pt-1 border-t border-slate-800/60">
+                        <span className="text-slate-400 font-medium flex items-center gap-1">
+                          <span>🔻</span> إجمالي الخصومات:
+                        </span>
+                        <span className="font-mono font-bold text-rose-400 text-sm">
+                          {totalDedAmount.toLocaleString('ar-EG')} ج.م
+                        </span>
+                      </div>
                     </div>
 
                     {/* Action Buttons */}
                     <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <button
                           onClick={() => onSelectEmployeeProfile(emp)}
                           className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-slate-800 text-cyan-300 hover:bg-slate-700 transition-colors"
@@ -192,10 +207,19 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                         {onOpenAddAdvanceModal && (
                           <button
                             onClick={() => onOpenAddAdvanceModal(emp)}
-                            className="flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 transition-all"
+                            className="flex items-center gap-1 text-xs font-bold px-2 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 transition-all"
                           >
                             <span>💵</span>
                             <span>+ سلفة</span>
+                          </button>
+                        )}
+                        {onOpenAddDeductionModal && (
+                          <button
+                            onClick={() => onOpenAddDeductionModal(emp)}
+                            className="flex items-center gap-1 text-xs font-bold px-2 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/30 transition-all"
+                          >
+                            <span>🔻</span>
+                            <span>+ خصم</span>
                           </button>
                         )}
                       </div>

@@ -9,11 +9,13 @@ import { LateEmployeesView } from '@/components/LateEmployeesView';
 import { EmployeesView } from '@/components/EmployeesView';
 import AdvancesView from '@/components/AdvancesView';
 import AddAdvanceModal from '@/components/AddAdvanceModal';
+import DeductionsView from '@/components/DeductionsView';
+import AddDeductionModal from '@/components/AddDeductionModal';
 import { EmployeeProfileModal } from '@/components/EmployeeProfileModal';
 import { EditAttendanceModal } from '@/components/EditAttendanceModal';
 import { AuditLogView } from '@/components/AuditLogView';
 import { SettingsView } from '@/components/SettingsView';
-import { Employee, AttendanceRecord, AuditLog, SystemSettings, AdvanceRecord } from '@/types';
+import { Employee, AttendanceRecord, AuditLog, SystemSettings, AdvanceRecord, DeductionRecord } from '@/types';
 import { AttendanceStore, getTodayDateString } from '@/lib/store';
 import { PasswordGate } from '@/components/PasswordGate';
 import { getSocket } from '@/lib/socket';
@@ -25,6 +27,7 @@ export default function Home() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [advances, setAdvances] = useState<AdvanceRecord[]>([]);
+  const [deductions, setDeductions] = useState<DeductionRecord[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [settings, setSettings] = useState<SystemSettings>(AttendanceStore.getSettings());
 
@@ -32,6 +35,7 @@ export default function Home() {
   const [selectedProfileEmployee, setSelectedProfileEmployee] = useState<Employee | null>(null);
   const [editingAttendanceRecord, setEditingAttendanceRecord] = useState<AttendanceRecord | null>(null);
   const [addAdvanceEmployee, setAddAdvanceEmployee] = useState<Employee | null>(null);
+  const [addDeductionEmployee, setAddDeductionEmployee] = useState<Employee | null>(null);
 
   // Today Date formatted in Arabic
   const [todayArabicDateStr, setTodayArabicDateStr] = useState('');
@@ -41,14 +45,16 @@ export default function Home() {
     setEmployees(AttendanceStore.getEmployees());
     setAttendanceRecords(AttendanceStore.getAttendance());
     setAdvances(AttendanceStore.getAdvances());
+    setDeductions(AttendanceStore.getDeductions());
     setAuditLogs(AttendanceStore.getAuditLogs());
     setSettings(AttendanceStore.getSettings());
 
     // Fetch latest live data from DigitalOcean Server API
-    const [fetchedEmps, fetchedAtt, fetchedAdv, fetchedLogs, fetchedSet] = await Promise.all([
+    const [fetchedEmps, fetchedAtt, fetchedAdv, fetchedDed, fetchedLogs, fetchedSet] = await Promise.all([
       AttendanceStore.fetchEmployeesAsync(),
       AttendanceStore.fetchAttendanceAsync(),
       AttendanceStore.fetchAdvancesAsync(),
+      AttendanceStore.fetchDeductionsAsync(),
       AttendanceStore.fetchAuditLogsAsync(),
       AttendanceStore.fetchSettingsAsync(),
     ]);
@@ -56,6 +62,7 @@ export default function Home() {
     setEmployees(fetchedEmps);
     setAttendanceRecords(fetchedAtt);
     setAdvances(fetchedAdv);
+    setDeductions(fetchedDed);
     setAuditLogs(fetchedLogs);
     setSettings(fetchedSet);
   };
@@ -123,10 +130,12 @@ export default function Home() {
               employees={employees}
               attendanceRecords={attendanceRecords}
               advances={advances}
+              deductions={deductions}
               settings={settings}
               onRefreshData={loadData}
               onOpenEditModal={handleOpenEditModal}
               onOpenAddAdvanceModal={(emp) => setAddAdvanceEmployee(emp)}
+              onOpenAddDeductionModal={(emp) => setAddDeductionEmployee(emp)}
             />
           )}
 
@@ -158,9 +167,11 @@ export default function Home() {
               employees={employees}
               attendanceRecords={attendanceRecords}
               advances={advances}
+              deductions={deductions}
               onRefreshData={loadData}
               onSelectEmployeeProfile={(emp) => setSelectedProfileEmployee(emp)}
               onOpenAddAdvanceModal={(emp) => setAddAdvanceEmployee(emp)}
+              onOpenAddDeductionModal={(emp) => setAddDeductionEmployee(emp)}
             />
           )}
 
@@ -170,6 +181,15 @@ export default function Home() {
               advances={advances}
               onRefresh={loadData}
               onOpenAddModal={(emp) => setAddAdvanceEmployee(emp)}
+            />
+          )}
+
+          {activeTab === 'deductions' && (
+            <DeductionsView
+              employees={employees}
+              deductions={deductions}
+              onRefresh={loadData}
+              onOpenAddModal={(emp) => setAddDeductionEmployee(emp)}
             />
           )}
 
@@ -216,9 +236,18 @@ export default function Home() {
           />
         )}
 
+        {addDeductionEmployee && (
+          <AddDeductionModal
+            employee={addDeductionEmployee}
+            isOpen={Boolean(addDeductionEmployee)}
+            onClose={() => setAddDeductionEmployee(null)}
+            onSuccess={loadData}
+          />
+        )}
+
         {/* Footer */}
         <footer className="border-t border-slate-800/80 bg-slate-950/60 py-4 text-center text-xs text-slate-500">
-          <p>نظام حضور وسلف الحسيني للتكييف © 2026 - خادم DigitalOcean وتواصل Socket.io اللحظي (161.35.12.161)</p>
+          <p>نظام حضور وسلف وخصومات الحسيني للتكييف © 2026 - خادم DigitalOcean وتواصل Socket.io اللحظي (161.35.12.161)</p>
         </footer>
       </div>
     </PasswordGate>

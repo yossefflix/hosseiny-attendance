@@ -1,10 +1,11 @@
-import { Employee, AttendanceRecord, AuditLog, SystemSettings, AttendanceStatus, AdvanceRecord } from '@/types';
+import { Employee, AttendanceRecord, AuditLog, SystemSettings, AttendanceStatus, AdvanceRecord, DeductionRecord } from '@/types';
 
 const STORAGE_KEYS = {
   EMPLOYEES: 'hosseiny_employees_v7',
   ATTENDANCE: 'hosseiny_attendance_v7',
   AUDIT_LOGS: 'hosseiny_audit_logs_v7',
   ADVANCES: 'hosseiny_advances_v7',
+  DEDUCTIONS: 'hosseiny_deductions_v7',
   SETTINGS: 'hosseiny_settings_v7',
 };
 
@@ -304,10 +305,103 @@ export class AttendanceStore {
     }
   }
 
+  // --- DEDUCTIONS (الخصومات المالية) ---
+  static getDeductions(): DeductionRecord[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.DEDUCTIONS);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  static async fetchDeductionsAsync(): Promise<DeductionRecord[]> {
+    try {
+      const res = await fetch('/api/deductions');
+      if (res.ok) {
+        const data: DeductionRecord[] = await res.json();
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_KEYS.DEDUCTIONS, JSON.stringify(data));
+        }
+        return data;
+      }
+    } catch (err) {
+      console.error('Fetch deductions error:', err);
+    }
+    return this.getDeductions();
+  }
+
+  static async addDeduction(
+    employeeId: string,
+    amount: number,
+    reason?: string
+  ): Promise<DeductionRecord> {
+    const deductions = this.getDeductions();
+    const emps = this.getEmployees();
+    const emp = emps.find((e) => e.id === employeeId);
+    
+    const now = new Date();
+    const dateStr = getTodayDateString();
+    const timeStr = getCurrentTimeString();
+
+    const newDeduction: DeductionRecord = {
+      id: `ded-${Date.now()}`,
+      employee_id: employeeId,
+      employee_name: emp ? emp.name : 'موظف',
+      amount,
+      date: dateStr,
+      time: timeStr,
+      reason: reason || '',
+      created_at: now.toISOString(),
+    };
+
+    deductions.push(newDeduction);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.DEDUCTIONS, JSON.stringify(deductions));
+    }
+
+    try {
+      const res = await fetch('/api/deductions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employee_id: employeeId,
+          amount,
+          date: dateStr,
+          time: timeStr,
+          reason,
+        }),
+      });
+      if (res.ok) {
+        const cloudDed = await res.json();
+        return cloudDed;
+      }
+    } catch (err) {
+      console.error('Add deduction error:', err);
+    }
+
+    return newDeduction;
+  }
+
+  static async deleteDeduction(id: string): Promise<void> {
+    let deductions = this.getDeductions();
+    deductions = deductions.filter((d) => d.id !== id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.DEDUCTIONS, JSON.stringify(deductions));
+    }
+    try {
+      await fetch(`/api/deductions/${id}`, { method: 'DELETE' });
+    } catch (err) {
+      console.error('Delete deduction error:', err);
+    }
+  }
+
   static async purgeThreeMonthData(): Promise<boolean> {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(STORAGE_KEYS.ATTENDANCE);
       localStorage.removeItem(STORAGE_KEYS.ADVANCES);
+      localStorage.removeItem(STORAGE_KEYS.DEDUCTIONS);
       localStorage.removeItem(STORAGE_KEYS.AUDIT_LOGS);
     }
     try {

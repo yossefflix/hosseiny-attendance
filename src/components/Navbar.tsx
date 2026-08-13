@@ -23,6 +23,7 @@ export type ActiveTab =
   | 'late_employees'
   | 'employees'
   | 'advances'
+  | 'deductions'
   | 'audit_log'
   | 'settings';
 
@@ -40,6 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, todayDa
     { id: 'late_employees', label: 'المتأخرين ⚠️', icon: <AlertTriangle className="w-5 h-5 text-amber-400" /> },
     { id: 'employees', label: 'الموظفين', icon: <Users className="w-5 h-5" /> },
     { id: 'advances', label: 'السلف المالية 💰', icon: <span className="text-base">💵</span> },
+    { id: 'deductions', label: 'الخصومات المالية 🔻', icon: <span className="text-base">🔻</span> },
     { id: 'audit_log', label: 'سجل التعديلات', icon: <History className="w-5 h-5" /> },
     { id: 'settings', label: 'الإعدادات', icon: <Settings className="w-5 h-5" /> },
   ];

@@ -188,3 +188,40 @@ export function exportAdvancesToExcel(advances: any[], employees: Employee[]) {
   XLSX.writeFile(workbook, `advances_report_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
+// Generate Deductions Excel Report
+export function exportDeductionsToExcel(deductions: any[], employees: Employee[]) {
+  const empMap = new Map<string, Employee>();
+  employees.forEach((e) => empMap.set(e.id, e));
+
+  const rows = deductions.map((ded, idx) => {
+    const emp = empMap.get(ded.employee_id);
+    return {
+      '#': idx + 1,
+      'اسم الموظف': ded.employee_name || emp?.name || 'موظف',
+      'الوظيفة': emp?.job_title || '-',
+      'مبلغ الخصم (ج.م)': ded.amount || 0,
+      'سبب الخصم': ded.reason || '-',
+      'تاريخ الخصم': ded.date || '-',
+      'وقت التسجيل': ded.time ? formatArabicTime(ded.time) : '-',
+    };
+  });
+
+  const totalAmount = deductions.reduce((sum, d) => sum + (d.amount || 0), 0);
+
+  const summaryRows = [
+    { 'البيان': 'إجمالي عدد الخصومات المسجلة', 'القيمة': deductions.length },
+    { 'البيan': 'إجمالي مبالغ الخصومات (ج.م)', 'القيمة': totalAmount },
+    { 'البيان': 'تاريخ استخراج التقرير', 'القيمة': new Date().toLocaleDateString('ar-EG') },
+  ];
+
+  const workbook = XLSX.utils.book_new();
+
+  const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
+  XLSX.utils.book_append_sheet(workbook, summarySheet, 'ملخص الخصومات');
+
+  const mainSheet = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(workbook, mainSheet, 'سجل الخصومات التفصيلي');
+
+  XLSX.writeFile(workbook, `deductions_report_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+

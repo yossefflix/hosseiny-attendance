@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Employee, AttendanceRecord, SystemSettings, AdvanceRecord } from '@/types';
+import { Employee, AttendanceRecord, SystemSettings, AdvanceRecord, DeductionRecord } from '@/types';
 import { 
   Users, 
   CheckCircle2, 
@@ -23,20 +23,24 @@ interface DashboardViewProps {
   employees: Employee[];
   attendanceRecords: AttendanceRecord[];
   advances?: AdvanceRecord[];
+  deductions?: DeductionRecord[];
   settings: SystemSettings;
   onRefreshData: () => void;
   onOpenEditModal: (record: AttendanceRecord) => void;
   onOpenAddAdvanceModal?: (employee: Employee) => void;
+  onOpenAddDeductionModal?: (employee: Employee) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   employees,
   attendanceRecords,
   advances = [],
+  deductions = [],
   settings,
   onRefreshData,
   onOpenEditModal,
   onOpenAddAdvanceModal,
+  onOpenAddDeductionModal,
 }) => {
   const todayStr = getTodayDateString();
   
@@ -228,6 +232,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 const empAdvances = advances.filter((a) => a.employee_id === emp.id);
                 const empAdvTotal = empAdvances.reduce((sum, a) => sum + (a.amount || 0), 0);
 
+                const empDeductions = deductions.filter((d) => d.employee_id === emp.id);
+                const empDedTotal = empDeductions.reduce((sum, d) => sum + (d.amount || 0), 0);
+
                 return (
                   <div
                     key={emp.id}
@@ -239,11 +246,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         {emp.name.slice(0, 2)}
                       </div>
                       <div className="truncate">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <h4 className="font-semibold text-slate-100 text-sm truncate">{emp.name}</h4>
                           {empAdvTotal > 0 && (
                             <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold font-mono px-2 py-0.5 rounded-full">
                               💵 سلف: {empAdvTotal.toLocaleString('ar-EG')} ج.م
+                            </span>
+                          )}
+                          {empDedTotal > 0 && (
+                            <span className="text-[10px] bg-rose-500/10 text-rose-400 border border-rose-500/30 font-bold font-mono px-2 py-0.5 rounded-full">
+                              🔻 خصومات: {empDedTotal.toLocaleString('ar-EG')} ج.م
                             </span>
                           )}
                         </div>
@@ -266,6 +278,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         >
                           <span>💵</span>
                           <span className="hidden sm:inline">+ سلفة</span>
+                        </button>
+                      )}
+
+                      {/* Add Deduction Button */}
+                      {onOpenAddDeductionModal && (
+                        <button
+                          onClick={() => onOpenAddDeductionModal(emp)}
+                          title="إضافة خصم مالي للموظف"
+                          className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold transition flex items-center gap-1"
+                        >
+                          <span>🔻</span>
+                          <span className="hidden sm:inline">+ خصم</span>
                         </button>
                       )}
 

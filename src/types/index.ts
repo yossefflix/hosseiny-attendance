@@ -55,10 +55,20 @@ export interface AdvanceRecord {
   created_at?: string;
 }
 
+export interface DeductionRecord {
+  id: string;
+  employee_id: string;
+  employee_name?: string;
+  amount: number; // مبلغ الخصم
+  reason?: string; // سبب الخصم
+  date: string;   // تاريخ الخصم (YYYY-MM-DD)
+  time?: string;   // وقت الخصم (HH:mm)
+  created_at?: string;
+}
+
 export interface SystemSettings {
   work_start_time: string; // e.g. "09:00"
   late_start_time: string; // e.g. "10:00"
   severe_late_time: string; // e.g. "11:00"
-  last_purge_date?: string; // تاريخ آخر تصفية للبيانات
+  last_purge_date?: string; // تاريخ آخر تصفية تلقائية 3 شهور
 }
-
